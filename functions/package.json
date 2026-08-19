@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test test/versionReviewService.test.mjs"
+    "test": "npm run build && node --test --test-concurrency=1 test/versionReviewService.test.mjs test/sessionParticipationService.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",

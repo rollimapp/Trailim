@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Route, Station, Task } from '../types';
-import { createRouteVersionSnapshot, splitLegacyTask, toRouteDraft } from './vs1Adapters.ts';
+import {
+  createRouteVersionSnapshot,
+  mergeVersionedAndLegacyReviews,
+  splitLegacyTask,
+  toLegacyVersionPreview,
+  toRouteDraft,
+} from './vs1Adapters.ts';
 
 const protectedTask: Task = {
   id: 'task-1',
@@ -157,5 +163,47 @@ test('createRouteVersionSnapshot rejects stale legacy stations instead of mixing
       visibility: 'class',
     }),
     /does not match the submitted draft/,
+  );
+});
+
+test('version preview is derived from the submitted snapshot, not later legacy edits', () => {
+  const submittedRoute = structuredClone(route);
+  const submittedStation = structuredClone(station);
+  const draft = toRouteDraft(submittedRoute, [submittedStation]);
+  const snapshot = createRouteVersionSnapshot({
+    draft,
+    legacyStations: [submittedStation],
+    versionId: 'version-preview-1',
+    versionNumber: 1,
+    submittedByUserId: 'student-1',
+    submittedAt: '2026-02-03T00:00:00.000Z',
+    visibility: 'class',
+  });
+
+  submittedRoute.title = 'Mutable legacy title';
+  submittedStation.title = 'Mutable legacy station';
+  const preview = toLegacyVersionPreview(submittedRoute, {
+    version: snapshot.version,
+    stations: snapshot.stations,
+  });
+
+  assert.equal(preview.route.title, draft.content.title);
+  assert.equal(preview.stations[0].title, draft.stations[0].title);
+  assert.notEqual(preview.route.id, submittedRoute.id);
+  assert.equal(JSON.stringify(preview.stations).includes('isCorrect'), false);
+});
+
+test('versioned reviews deduplicate pending legacy reviews by route identity', () => {
+  const versionedReview = {
+    id: 'vs1-review', routeId: 'route-1', routeTitle: 'Versioned', creatorId: 'student-1',
+    creatorName: 'Student', creatorRole: 'student' as const, subject: 'History', stationCount: 1,
+    submittedAt: '2026-02-03T00:00:00.000Z', status: 'submitted' as const,
+  };
+  const duplicateLegacyReview = { ...versionedReview, id: 'legacy-review', routeTitle: 'Legacy' };
+  const otherLegacyReview = { ...versionedReview, id: 'other-review', routeId: 'route-2' };
+
+  assert.deepEqual(
+    mergeVersionedAndLegacyReviews([versionedReview], [duplicateLegacyReview, otherLegacyReview]).map(review => review.id),
+    ['vs1-review', 'other-review'],
   );
 });

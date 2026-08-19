@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Route, Station, ExperienceMode, RouteType, ContentBlock, Task, StationType, TriggerType } from '../../types';
 import { dataService } from '../../services/dataService';
+import { toRouteDraft, toVs1Route, toVs1Team } from '../../services/vs1Adapters';
+import { vs1WorkflowRepository } from '../../services/vs1WorkflowRepository';
 import { useAuth } from '../../context/AuthContext';
 import { MediaUploader } from '../common/MediaUploader';
 import { NewTeamModal } from './NewTeamModal';
@@ -224,6 +226,31 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
   const [activeStationIndex, setActiveStationIndex] = useState<number>(0);
 
+  const prepareVersionedDraft = (fullRoute: Route) => {
+    const existingRoute = vs1WorkflowRepository.getRoute(fullRoute.id);
+    const mappedRoute = toVs1Route(fullRoute);
+    const workflowRoute = existingRoute ? {
+      ...mappedRoute,
+      latestSubmittedVersionId: existingRoute.latestSubmittedVersionId,
+      approvedVersionId: existingRoute.approvedVersionId,
+    } : mappedRoute;
+    const draft = toRouteDraft(fullRoute, stations, currentUser.id);
+
+    if (fullRoute.teamInfo) {
+      const team = toVs1Team(
+        fullRoute.teamInfo,
+        workflowRoute.ownerTeamId,
+        workflowRoute.organizationId,
+        currentUser.id,
+        fullRoute.updatedAt,
+      );
+      vs1WorkflowRepository.saveTeam(team.team, team.members);
+    }
+
+    vs1WorkflowRepository.saveDraft(draft);
+    return { existingRoute, workflowRoute, draft };
+  };
+
   const handleSaveDraft = () => {
     const fullRoute: Route = {
       ...(routeData as Route),
@@ -233,6 +260,8 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
     dataService.saveRoute(fullRoute);
     stations.forEach(s => dataService.saveStation(s));
+    const { workflowRoute } = prepareVersionedDraft(fullRoute);
+    vs1WorkflowRepository.saveRoute(workflowRoute);
     alert('Project draft saved successfully!');
   };
 
@@ -305,6 +334,16 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
     dataService.saveRoute(fullRoute);
     stations.forEach(s => dataService.saveStation(s));
+    const { existingRoute, workflowRoute, draft } = prepareVersionedDraft(fullRoute);
+    const visibility = targetVisibility === 'school' ? 'school' : 'class';
+    const submission = existingRoute?.status === 'changes_requested'
+      ? vs1WorkflowRepository.resubmit(fullRoute.id, draft, stations, currentUser.id, visibility)
+      : vs1WorkflowRepository.submitDraft(workflowRoute, draft, stations, currentUser.id, visibility);
+    dataService.saveRoute({
+      ...fullRoute,
+      currentDraftVersionId: draft.id,
+      versionIds: [...(fullRoute.versionIds || []), submission.snapshot.version.id],
+    });
 
     alert(`Submitted project to teacher Ms. Elena Vance! Status: Submitted for Review.`);
     onClose();
@@ -318,6 +357,16 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     };
 
     dataService.saveRoute(fullRoute);
+    stations.forEach(s => dataService.saveStation(s));
+    const { existingRoute, workflowRoute, draft } = prepareVersionedDraft(fullRoute);
+    const submission = existingRoute?.status === 'changes_requested'
+      ? vs1WorkflowRepository.resubmit(fullRoute.id, draft, stations, currentUser.id, fullRoute.visibility === 'school' ? 'school' : 'class')
+      : vs1WorkflowRepository.submitDraft(workflowRoute, draft, stations, currentUser.id, fullRoute.visibility === 'school' ? 'school' : 'class');
+    dataService.saveRoute({
+      ...fullRoute,
+      currentDraftVersionId: draft.id,
+      versionIds: [...(fullRoute.versionIds || []), submission.snapshot.version.id],
+    });
     alert('Resubmitted revised project to teacher!');
     onClose();
   };

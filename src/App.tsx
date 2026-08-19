@@ -15,13 +15,14 @@ import { MyActivityView } from './components/activity/MyActivityView';
 import { CommunityView } from './components/community/CommunityView';
 import { ProfileView } from './components/profile/ProfileView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
-import { Route, ExperienceMode } from './types';
+import { Route, Station, ExperienceMode } from './types';
 
 const MainContent: React.FC = () => {
   const { activeRoute } = useActiveRoute();
   
   const [activeTab, setActiveTab] = useState<MainTab>('explore');
   const [selectedRouteForDetail, setSelectedRouteForDetail] = useState<Route | null>(null);
+  const [selectedRouteStations, setSelectedRouteStations] = useState<Station[] | null>(null);
   const [preStartMode, setPreStartMode] = useState<ExperienceMode | null>(null);
   const [isBuildingRoute, setIsBuildingRoute] = useState<boolean>(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
@@ -73,7 +74,11 @@ const MainContent: React.FC = () => {
                 /* Route Detail Overview Screen */
                 <RouteDetailView
                   route={selectedRouteForDetail}
-                  onBack={() => setSelectedRouteForDetail(null)}
+                  stationsOverride={selectedRouteStations || undefined}
+                  onBack={() => {
+                    setSelectedRouteStations(null);
+                    setSelectedRouteForDetail(null);
+                  }}
                   onStartRoute={(mode) => setPreStartMode(mode)}
                 />
               ) : isBuildingRoute ? (
@@ -120,13 +125,19 @@ const MainContent: React.FC = () => {
                         setEditingRoute(route);
                         setIsBuildingRoute(true);
                       }}
-                      onPreviewRoute={(route) => setSelectedRouteForDetail(route)}
+                      onPreviewRoute={(route) => {
+                        setSelectedRouteStations(null);
+                        setSelectedRouteForDetail(route);
+                      }}
                     />
                   )}
 
                   {activeTab === 'review_queue' && (
                     <ReviewQueueView
-                      onPreviewRoute={(route) => setSelectedRouteForDetail(route)}
+                      onPreviewRoute={(route, stations) => {
+                        setSelectedRouteStations(stations || null);
+                        setSelectedRouteForDetail(route);
+                      }}
                     />
                   )}
 

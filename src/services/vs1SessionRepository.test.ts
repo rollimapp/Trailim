@@ -165,3 +165,18 @@ test('completed or cancelled parent sessions reject participant writes', () => {
     }), /parent session is not active/);
   }
 });
+
+test('session lifecycle cannot reopen or reactivate a terminal session', () => {
+  for (const terminalStatus of ['completed', 'cancelled'] as const) {
+    const harness = createHarness();
+    const session = harness.createSession();
+    harness.repository.joinSession(session.id, 'participant-1');
+    harness.repository.updateSessionStatus(session.id, terminalStatus);
+
+    assert.throws(
+      () => harness.repository.updateSessionStatus(session.id, 'active'),
+      new RegExp(`invalid ${terminalStatus} to active transition`),
+    );
+    assert.equal(harness.repository.getSession(session.id)!.status, terminalStatus);
+  }
+});

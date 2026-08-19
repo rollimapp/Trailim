@@ -49,7 +49,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({ route, onSelect }) => {
         <div className="absolute top-2.5 left-2.5 flex flex-col items-start gap-1 z-10">
           {/* Route Type Badge */}
           <div className="bg-[#1B4332]/90 backdrop-blur-md text-emerald-100 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md tracking-wider shadow-xs border border-emerald-700/50 uppercase">
-            {route.routeType.replace(/_/g, ' ')}
+            {(route.routeType || 'community_heritage').replace(/_/g, ' ')}
           </div>
 
           {/* Student Team / Student Created Badge */}
@@ -162,7 +162,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({ route, onSelect }) => {
             {route.isTeamProject ? (
               <span className="font-bold text-sky-800 truncate">👥 {route.teamInfo?.teamName || route.creatorDisplayName}</span>
             ) : (
-              <span className="font-semibold text-slate-700 truncate">By {route.creatorDisplayName.split(' ')[0]}</span>
+              <span className="font-semibold text-slate-700 truncate">By {route.creatorDisplayName?.split(' ')[0] || 'Creator'}</span>
             )}
           </div>
 

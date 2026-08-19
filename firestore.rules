@@ -214,7 +214,7 @@ service cloud.firestore {
     }
 
     match /routes/{routeId} {
-      allow read: if isActiveMember(resource.data.organizationId);
+      allow read: if resource == null || isActiveMember(resource.data.organizationId);
       allow create: if validRoute(routeId)
         && request.resource.data.status == 'draft'
         && !('latestSubmittedVersionId' in request.resource.data)
@@ -237,7 +237,8 @@ service cloud.firestore {
       allow delete: if false;
 
       match /drafts/{draftId} {
-        allow read: if canManageRoute(get(routePath(routeId)).data)
+        allow read: if exists(routePath(routeId))
+          && canManageRoute(get(routePath(routeId)).data)
           && get(routePath(routeId)).data.currentDraftId == draftId;
         allow create: if validDraft(routeId, draftId, getAfter(routePath(routeId)).data)
           && !('basedOnVersionId' in request.resource.data)
@@ -256,7 +257,8 @@ service cloud.firestore {
         allow delete: if false;
 
         match /stations/{stationId} {
-          allow read: if canManageRoute(get(routePath(routeId)).data)
+          allow read: if exists(routePath(routeId))
+            && canManageRoute(get(routePath(routeId)).data)
             && get(routePath(routeId)).data.currentDraftId == draftId;
           allow create, update: if validDraftStation(routeId, draftId, stationId)
             && existsAfter(draftPath(routeId, draftId))
@@ -267,21 +269,25 @@ service cloud.firestore {
       }
 
       match /versions/{routeVersionId} {
-        allow read: if canManageRoute(get(routePath(routeId)).data)
+        allow read: if exists(routePath(routeId)) && (
+          canManageRoute(get(routePath(routeId)).data)
           || (
             isActiveMember(resource.data.organizationId)
             && resource.data.status == 'approved'
             && get(routePath(routeId)).data.approvedVersionId == routeVersionId
-          );
+          )
+        );
         allow write: if false;
 
         match /stations/{stationId} {
-          allow read: if canManageRoute(get(routePath(routeId)).data)
+          allow read: if exists(routePath(routeId)) && (
+            canManageRoute(get(routePath(routeId)).data)
             || (
               isActiveMember(get(routePath(routeId)).data.organizationId)
               && get(/databases/$(database)/documents/routes/$(routeId)/versions/$(routeVersionId)).data.status == 'approved'
               && get(routePath(routeId)).data.approvedVersionId == routeVersionId
-            );
+            )
+          );
           allow write: if false;
         }
 
@@ -292,15 +298,13 @@ service cloud.firestore {
     }
 
     match /reviews/{reviewId} {
-      allow get: if isTeacher(resource.data.organizationId)
-        || canManageRoute(get(routePath(resource.data.routeId)).data);
-      allow list: if isTeacher(resource.data.organizationId)
-        || canManageRoute(get(routePath(resource.data.routeId)).data);
+      allow read: if isTeacher(resource.data.organizationId)
+        || (exists(routePath(resource.data.routeId)) && canManageRoute(get(routePath(resource.data.routeId)).data));
       allow write: if false;
     }
 
     match /routeSessions/{sessionId} {
-      allow read: if isActiveMember(resource.data.organizationId);
+      allow read: if 'organizationId' in resource.data && isActiveMember(resource.data.organizationId);
       allow write: if false;
 
       match /participations/{participantUserId} {

@@ -25,6 +25,8 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
     existingResponse ? { isCorrect: existingResponse.isCorrect, feedback: existingResponse.feedback } : null
   );
 
+  const isCompletedOrLocked = existingResponse && (existingResponse.isCorrect === true || task.allowRetry === false);
+
   const handleSubmitChoice = async (optionId: string) => {
     setSelectedOption(optionId);
     const result = await submitTaskAnswer(task.id, optionId);
@@ -88,7 +90,7 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
               <button
                 key={opt.id}
                 onClick={() => handleSubmitChoice(opt.id)}
-                disabled={!!existingResponse}
+                disabled={!!isCompletedOrLocked}
                 className={`w-full p-3 rounded-xl text-left text-xs font-semibold border transition-all flex items-center justify-between ${
                   isSelected
                     ? feedbackResult?.isCorrect === false
@@ -116,12 +118,12 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
           <textarea
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
-            disabled={!!existingResponse}
+            disabled={!!isCompletedOrLocked}
             rows={3}
             placeholder="Type your reflection or answer here..."
             className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
           />
-          {!existingResponse && (
+          {!isCompletedOrLocked && (
             <button
               onClick={handleSubmitTextOrCode}
               disabled={!textInput.trim()}
@@ -140,7 +142,7 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
               type="text"
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              disabled={!!existingResponse}
+              disabled={!!isCompletedOrLocked}
               placeholder="Enter 4-digit code..."
               className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
             />

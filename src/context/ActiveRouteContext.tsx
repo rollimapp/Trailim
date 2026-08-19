@@ -54,9 +54,41 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const activeSubmissionIdsRef = React.useRef<Record<string, string>>({});
   const submissionsInFlightRef = React.useRef<Record<string, boolean>>({});
 
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (isFirebaseConfigured()) {
+      return getFirebaseServices().auth.onAuthStateChanged(user => {
+        setFirebaseUser(user);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFirebaseConfigured() && !getFirebaseServices().auth.currentUser) {
+      return;
+    }
+
+    if (currentUser) {
+      const activeRouteId = localStorage.getItem('active_route_id');
+      const activeRouteMode = localStorage.getItem('active_route_mode') as ExperienceMode | null;
+      const activeTeamName = localStorage.getItem('active_route_team_name') || '';
+      if (activeRouteId && activeRouteMode && !activeRoute) {
+        const route = dataService.getRouteById(activeRouteId);
+        if (route) {
+          startRoute(route, activeRouteMode, activeTeamName);
+        }
+      }
+    }
+  }, [currentUser, firebaseUser]);
+
   const currentStation = activeStations[currentStationIndex] || null;
 
   const startRoute = (route: Route, mode: ExperienceMode, newTeamName: string = '') => {
+    localStorage.setItem('active_route_id', route.id);
+    localStorage.setItem('active_route_mode', mode);
+    localStorage.setItem('active_route_team_name', newTeamName);
+
     setActiveRoute(route);
     setSelectedMode(mode);
     setTeamName(newTeamName);
@@ -84,7 +116,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
               const stations = versionedPreview.stations;
               setActiveStations(stations);
               
-              let resumed = await firestoreSessionParticipationRepository.findActiveParticipation(approvedVersionId, currentUser.id, mode);
+              let resumed = await firestoreSessionParticipationRepository.findActiveParticipation(approvedVersionId, currentUser.id, mode, currentUser.organizationId);
               let session: Vs1RouteSession;
               let participation: Participation;
 
@@ -92,20 +124,28 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 session = resumed.session;
                 participation = resumed.participation;
               } else {
-                const createRes = await firebaseSessionParticipationGateway.createSession({
-                  routeId: workflowRoute.id,
-                  routeVersionId: approvedVersionId,
-                  title: `${workflowRoute.title} Session`,
-                  mode,
-                });
-                const sessionId = (createRes.data as any).sessionId;
-                const fetchedSession = await firestoreSessionParticipationRepository.getSession(sessionId);
-                if (!fetchedSession) throw new Error('Failed to fetch created session');
-                session = fetchedSession;
+                const activeSessions = await firestoreSessionParticipationRepository.listActiveSessions(currentUser.organizationId, approvedVersionId, mode);
+                const activeSession = activeSessions[0];
+                let sessionId: string;
+                if (activeSession) {
+                  sessionId = activeSession.id;
+                  session = activeSession;
+                } else {
+                  const createRes = await firebaseSessionParticipationGateway.createSession({
+                    routeId: workflowRoute.id,
+                    routeVersionId: approvedVersionId,
+                    title: `${workflowRoute.title} Session`,
+                    mode,
+                  });
+                  sessionId = (createRes.data as any).sessionId;
+                  const fetchedSession = await firestoreSessionParticipationRepository.getSession(sessionId);
+                  if (!fetchedSession) throw new Error('Failed to fetch created session');
+                  session = fetchedSession;
+                }
 
-                const joinRes = await firebaseSessionParticipationGateway.joinSession(session.id);
+                const joinRes = await firebaseSessionParticipationGateway.joinSession(sessionId);
                 const participationId = (joinRes.data as any).participationId;
-                const fetchedParticipation = await firestoreSessionParticipationRepository.getOwnParticipation(session.id, currentUser.id);
+                const fetchedParticipation = await firestoreSessionParticipationRepository.getOwnParticipation(sessionId, currentUser.id);
                 if (!fetchedParticipation) throw new Error('Failed to fetch participation');
                 participation = fetchedParticipation;
               }
@@ -124,6 +164,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
               const currentIndex = participation.currentStationId
                 ? Math.max(0, stations.findIndex(st => st.id === participation.currentStationId))
                 : 0;
+
               const restoredUnlocked = Array.from(new Set([
                 ...participation.completedStationIds,
                 stations[currentIndex]?.id,
@@ -525,6 +566,10 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const exitRoute = () => {
+    localStorage.removeItem('active_route_id');
+    localStorage.removeItem('active_route_mode');
+    localStorage.removeItem('active_route_team_name');
+
     setActiveRoute(null);
     setActiveStations([]);
     setCurrentStationIndex(0);

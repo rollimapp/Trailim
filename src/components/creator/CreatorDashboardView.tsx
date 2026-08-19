@@ -29,61 +29,72 @@ export const CreatorDashboardView: React.FC<CreatorDashboardViewProps> = ({
 
   useEffect(() => {
     const draftsEnabled = import.meta.env.VITE_ENABLE_FIREBASE_ROUTE_DRAFTS === 'true';
-    if (draftsEnabled && isFirebaseConfigured() && getFirebaseServices().auth.currentUser) {
-      const loadFirebaseRoutes = async () => {
-        try {
-          const vs1Routes = await firestoreRouteDraftRepository.listRoutesByOrganization('org-edu-1');
-          const legacyRoutesMapped = await Promise.all(vs1Routes.map(async (vr) => {
-            const draft = await firestoreRouteDraftRepository.getDraft(vr.id, vr.currentDraftId);
-            const stations = draft ? draft.stations : [];
-            const legacyRoute = {
-              id: vr.id,
-              title: draft?.content.title || vr.title || 'Untitled Trail',
-              shortDescription: draft?.content.shortDescription || '',
-              fullDescription: draft?.content.fullDescription || '',
-              coverImageUrl: draft?.content.coverImageUrl || '',
-              supportedModes: draft?.content.supportedModes || ['learning'],
-              defaultMode: draft?.content.defaultMode || 'learning',
-              subject: draft?.content.subject || '',
-              topics: draft?.content.topics || [],
-              learningObjectives: draft?.content.learningObjectives || [],
-              ageGroups: draft?.content.ageGroups || [],
-              language: draft?.content.language || 'he',
-              estimatedDurationMinutes: draft?.content.estimatedDurationMinutes || 30,
-              estimatedDistanceKm: draft?.content.estimatedDistanceKm || 1,
-              difficulty: draft?.content.difficulty || 'easy',
-              accessibilityInformation: draft?.content.accessibilityInformation || '',
-              safetyInstructions: draft?.content.safetyInstructions || '',
-              participantInstructions: draft?.content.participantInstructions || '',
-              startLocation: draft?.content.startLocation || { latitude: 32.0853, longitude: 34.7818 },
-              stationOrderMode: draft?.content.stationOrderMode || 'linear',
-              stationIds: stations.map(s => s.id),
-              creatorId: vr.createdByUserId,
-              creatorDisplayName: vr.createdByUserId === 'student-1' ? 'Maya Lin' : 'Elena Vance',
-              creatorRole: vr.createdByUserId === 'student-1' ? 'student' : 'teacher',
-              schoolId: vr.organizationId,
-              schoolName: 'Greenwood High School',
-              publishingStatus: vr.status === 'in_review' ? 'submitted_to_teacher' : 
-                               vr.status === 'changes_requested' ? 'changes_requested' :
-                               vr.status === 'approved' ? 'teacher_approved' : 'draft',
-              teacherApproved: vr.status === 'approved',
-              currentDraftVersionId: vr.currentDraftId,
-              currentPublishedVersionId: vr.approvedVersionId,
-              versionIds: vr.latestSubmittedVersionId ? [vr.latestSubmittedVersionId] : [],
-              createdAt: vr.createdAt,
-              updatedAt: vr.updatedAt,
-              isTeamProject: vr.ownerTeamId !== `local-team-${vr.id}`,
-              creatorTeamId: vr.ownerTeamId,
-            } as unknown as Route;
-            return legacyRoute;
-          }));
-          setRoutes(legacyRoutesMapped);
-        } catch (err) {
-          console.error('Failed to load routes from Firebase:', err);
-        }
-      };
+    if (!draftsEnabled || !isFirebaseConfigured()) return;
+
+    const loadFirebaseRoutes = async () => {
+      try {
+        const vs1Routes = await firestoreRouteDraftRepository.listRoutesByOrganization('org-edu-1');
+        const legacyRoutesMapped = await Promise.all(vs1Routes.map(async (vr) => {
+          const draft = await firestoreRouteDraftRepository.getDraft(vr.id, vr.currentDraftId);
+          const stations = draft ? draft.stations : [];
+          const legacyRoute = {
+            id: vr.id,
+            title: draft?.content.title || vr.title || 'Untitled Trail',
+            shortDescription: draft?.content.shortDescription || '',
+            fullDescription: draft?.content.fullDescription || '',
+            coverImageUrl: draft?.content.coverImageUrl || '',
+            supportedModes: draft?.content.supportedModes || ['learning'],
+            defaultMode: draft?.content.defaultMode || 'learning',
+            subject: draft?.content.subject || '',
+            topics: draft?.content.topics || [],
+            learningObjectives: draft?.content.learningObjectives || [],
+            ageGroups: draft?.content.ageGroups || [],
+            language: draft?.content.language || 'he',
+            estimatedDurationMinutes: draft?.content.estimatedDurationMinutes || 30,
+            estimatedDistanceKm: draft?.content.estimatedDistanceKm || 1,
+            difficulty: draft?.content.difficulty || 'easy',
+            accessibilityInformation: draft?.content.accessibilityInformation || '',
+            safetyInstructions: draft?.content.safetyInstructions || '',
+            participantInstructions: draft?.content.participantInstructions || '',
+            startLocation: draft?.content.startLocation || { latitude: 32.0853, longitude: 34.7818 },
+            stationOrderMode: draft?.content.stationOrderMode || 'linear',
+            stationIds: stations.map(s => s.id),
+            creatorId: vr.createdByUserId,
+            creatorDisplayName: vr.createdByUserId === 'student-1' ? 'Maya Lin' : 'Elena Vance',
+            creatorRole: vr.createdByUserId === 'student-1' ? 'student' : 'teacher',
+            schoolId: vr.organizationId,
+            schoolName: 'Greenwood High School',
+            publishingStatus: vr.status === 'in_review' ? 'submitted_to_teacher' :
+                             vr.status === 'changes_requested' ? 'changes_requested' :
+                             vr.status === 'approved' ? 'teacher_approved' : 'draft',
+            teacherApproved: vr.status === 'approved',
+            currentDraftVersionId: vr.currentDraftId,
+            currentPublishedVersionId: vr.approvedVersionId,
+            versionIds: vr.latestSubmittedVersionId ? [vr.latestSubmittedVersionId] : [],
+            createdAt: vr.createdAt,
+            updatedAt: vr.updatedAt,
+            isTeamProject: vr.ownerTeamId !== `local-team-${vr.id}`,
+            creatorTeamId: vr.ownerTeamId,
+          } as unknown as Route;
+          return legacyRoute;
+        }));
+        setRoutes(legacyRoutesMapped);
+      } catch (err) {
+        console.error('Failed to load routes from Firebase:', err);
+      }
+    };
+
+    if (getFirebaseServices().auth.currentUser) {
       loadFirebaseRoutes();
     }
+
+    const unsubscribe = getFirebaseServices().auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadFirebaseRoutes();
+      }
+    });
+
+    return () => unsubscribe();
   }, [currentUser]);
 
 

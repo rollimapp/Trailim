@@ -86,7 +86,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
           <span className="bg-[#1B4332] text-white text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-md shadow-xs border border-emerald-600">
-            {route.routeType.replace(/_/g, ' ')}
+            {(route.routeType || 'community_heritage').replace(/_/g, ' ')}
           </span>
           {route.isTeamProject && (
             <span className="bg-sky-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
@@ -108,7 +108,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
             {route.subtitle || route.shortDescription}
           </p>
           <div className="text-[11px] text-emerald-300 pt-0.5 font-semibold flex items-center gap-2">
-            <span>By {route.isTeamProject ? route.teamInfo?.teamName : route.creatorDisplayName}</span>
+            <span>By {route.isTeamProject ? (route.teamInfo?.teamName || route.creatorDisplayName) : (route.creatorDisplayName || 'Creator')}</span>
             <span>•</span>
             <span>{route.schoolName || 'Community Creator'}</span>
           </div>
@@ -340,7 +340,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
               <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Learning Objectives
             </h3>
             <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
-              {route.learningObjectives.map((obj, i) => (
+              {(route.learningObjectives || []).map((obj, i) => (
                 <li key={i}>{obj}</li>
               ))}
             </ul>
@@ -353,7 +353,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
             </h3>
             <p className="text-xs">{route.safetyInstructions}</p>
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {route.requiredEquipment.map((eq, i) => (
+              {(route.requiredEquipment || []).map((eq, i) => (
                 <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-semibold">
                   {eq}
                 </span>

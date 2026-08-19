@@ -147,20 +147,32 @@ test('each review is bound to the exact submitted version', () => {
   assert.equal(harness.repository.getReview(submission.review.id)!.routeVersionId, submission.snapshot.version.id);
 });
 
-test('a route already in review cannot create a second pending submission', () => {
-  const harness = createHarness();
-  const first = harness.repository.submitDraft(
-    harness.route, harness.draft, harness.legacyStations, 'student-1', 'class',
+test('a new route can submit directly once and rejects a duplicate while in review', () => {
+  let tick = 0;
+  const repository = new Vs1WorkflowRepository(
+    new MemoryStorage(),
+    () => `2026-03-01T00:00:0${tick++}.000Z`,
+    kind => `${kind}-${tick}`,
+  );
+  const { legacyRoute, legacyStations } = createLegacyFixture();
+  const route = toVs1Route(legacyRoute);
+  const submissionRoute = { ...route, status: 'in_review' as const };
+  const draft = toRouteDraft(legacyRoute, legacyStations);
+
+  repository.saveDraft(draft);
+  repository.saveRoute({ ...route, status: 'draft' });
+  const first = repository.submitDraft(
+    submissionRoute, draft, legacyStations, 'student-1', 'class',
   );
 
   assert.throws(
-    () => harness.repository.submitDraft(
-      harness.route, harness.draft, harness.legacyStations, 'student-1', 'class',
+    () => repository.submitDraft(
+      submissionRoute, draft, legacyStations, 'student-1', 'class',
     ),
     /not in draft status/,
   );
-  assert.equal(harness.repository.getRoute(harness.route.id)!.latestSubmittedVersionId, first.snapshot.version.id);
-  assert.equal(harness.repository.getReview(first.review.id)!.status, 'pending');
+  assert.equal(repository.getRoute(route.id)!.latestSubmittedVersionId, first.snapshot.version.id);
+  assert.equal(repository.getReview(first.review.id)!.status, 'pending');
 });
 
 test('approval targets the latest pending version and updates route summary', () => {

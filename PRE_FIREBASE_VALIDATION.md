@@ -43,7 +43,7 @@ The following remain blockers to declaring a Firebase-backed slice production-re
 
 Completed in this pass:
 
-1. `Vs1WorkflowRepository.submitDraft()` now accepts only a route in `draft`; the internal submission operation remains available to `resubmit()` only after its existing `changes_requested` guard.
+1. `Vs1WorkflowRepository.submitDraft()` now accepts only a persisted canonical route in `draft`; the creator flow establishes that draft route automatically for a brand-new direct submission, while the internal submission operation remains available to `resubmit()` only after its existing `changes_requested` guard.
 2. `Vs1SessionRepository.updateSessionStatus()` now enforces legal forward transitions and makes `completed`/`cancelled` terminal. `abandonParticipation()` now uses the same writable-parent-session gate as other participant writes.
 3. Focused regression tests cover duplicate pending submission and irreversible terminal sessions.
 

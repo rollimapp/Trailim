@@ -248,6 +248,9 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     }
 
     vs1WorkflowRepository.saveDraft(draft);
+    if (!existingRoute) {
+      vs1WorkflowRepository.saveRoute({ ...workflowRoute, status: 'draft' });
+    }
     return { existingRoute, workflowRoute, draft };
   };
 

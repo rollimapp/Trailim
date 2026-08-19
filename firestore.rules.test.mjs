@@ -5,7 +5,10 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc,
+  updateDoc, where, writeBatch,
+} from 'firebase/firestore';
 
 const projectId = 'trailim-rules-test';
 let environment;
@@ -79,6 +82,11 @@ const draftStation = (routeId, draftId, id = 'station-1') => ({
   allowRevisit: true,
 });
 
+const versionStation = (routeId, routeVersionId, id = 'station-1') => {
+  const { draftId: _draftId, ...station } = draftStation(routeId, 'source-draft', id);
+  return { ...station, routeVersionId };
+};
+
 before(async () => {
   environment = await initializeTestEnvironment({
     projectId,
@@ -110,6 +118,24 @@ beforeEach(async () => {
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'draft-a'), routeDraft(existingRoute, 'draft-a')),
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'other-draft'), routeDraft(existingRoute, 'other-draft')),
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'draft-a', 'stations', 'station-1'), draftStation('route-a', 'draft-a')),
+      setDoc(doc(db, 'routes', 'route-a', 'versions', 'version-1'), {
+        id: 'version-1', routeId: 'route-a', organizationId: 'org-a', ownerTeamId: 'creator-team',
+        versionNumber: 1, sourceDraftId: 'draft-a', content: { title: 'Submitted route' },
+        stationIds: ['station-1'], createdByUserId: 'creator-a', submittedAt: new Date('2026-01-02T00:00:00.000Z'),
+        status: 'submitted', visibility: 'class',
+      }),
+      setDoc(doc(db, 'routes', 'route-a', 'versions', 'version-1', 'stations', 'station-1'), {
+        ...versionStation('route-a', 'version-1'),
+      }),
+      setDoc(doc(db, 'routes', 'route-a', 'versions', 'version-1', 'answerKeys', 'task-1'), {
+        id: 'task-1', recordType: 'task_answer', routeVersionId: 'version-1', stationId: 'station-1',
+        taskId: 'task-1', validation: { kind: 'submission_only' }, pointsAwarded: 0,
+      }),
+      setDoc(doc(db, 'reviews', 'review-1'), {
+        id: 'review-1', organizationId: 'org-a', routeId: 'route-a', routeVersionId: 'version-1',
+        submittedByUserId: 'creator-a', submittedAt: new Date('2026-01-02T00:00:00.000Z'),
+        status: 'pending', createdAt: new Date('2026-01-02T00:00:00.000Z'),
+      }),
     ]);
   });
 });
@@ -384,4 +410,53 @@ test('cross-organization team identity mismatch is rejected', async () => {
     doc(db, 'routes', 'mismatched-route'),
     route('mismatched-route', 'org-a', 'team-b', 'student-b'),
   ));
+});
+
+test('authorized creator and same-organization teacher can read exact submitted workflow records', async () => {
+  const creatorDb = environment.authenticatedContext('creator-a').firestore();
+  const teacherDb = environment.authenticatedContext('teacher-a').firestore();
+  await assertSucceeds(getDoc(doc(creatorDb, 'routes', 'route-a', 'versions', 'version-1')));
+  await assertSucceeds(getDoc(doc(creatorDb, 'reviews', 'review-1')));
+  await assertSucceeds(getDoc(doc(teacherDb, 'reviews', 'review-1')));
+  await assertSucceeds(getDoc(doc(teacherDb, 'routes', 'route-a', 'versions', 'version-1', 'stations', 'station-1')));
+  await assertSucceeds(getDocs(query(
+    collection(teacherDb, 'reviews'),
+    where('organizationId', '==', 'org-a'),
+    where('status', '==', 'pending'),
+    orderBy('submittedAt', 'desc'),
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(creatorDb, 'reviews'),
+    where('routeId', '==', 'route-a'),
+    orderBy('submittedAt', 'desc'),
+  )));
+});
+
+test('teacher from another organization cannot read the review queue', async () => {
+  const db = environment.authenticatedContext('teacher-b').firestore();
+  await assertFails(getDocs(query(
+    collection(db, 'reviews'),
+    where('organizationId', '==', 'org-a'),
+    where('status', '==', 'pending'),
+    orderBy('submittedAt', 'desc'),
+  )));
+});
+
+test('protected AnswerKeys are unreadable to participant, creator, and teacher clients', async () => {
+  for (const userId of ['student-a', 'creator-a', 'teacher-a']) {
+    const db = environment.authenticatedContext(userId).firestore();
+    await assertFails(getDoc(doc(db, 'routes', 'route-a', 'versions', 'version-1', 'answerKeys', 'task-1')));
+  }
+});
+
+test('ordinary clients cannot create or mutate version and review workflow records', async () => {
+  const creatorDb = environment.authenticatedContext('creator-a').firestore();
+  const teacherDb = environment.authenticatedContext('teacher-a').firestore();
+  await assertFails(setDoc(doc(creatorDb, 'routes', 'route-a', 'versions', 'forged-version'), {
+    id: 'forged-version', routeId: 'route-a', status: 'approved',
+  }));
+  await assertFails(updateDoc(doc(creatorDb, 'routes', 'route-a', 'versions', 'version-1'), {
+    status: 'approved',
+  }));
+  await assertFails(updateDoc(doc(teacherDb, 'reviews', 'review-1'), { status: 'approved' }));
 });

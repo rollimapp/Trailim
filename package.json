@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "emulators": "firebase emulators:start --only auth,firestore",
-    "test:rules": "firebase emulators:exec --only firestore \"node --test firestore.rules.test.mjs\""
+    "emulators": "firebase emulators:start --only auth,firestore,functions",
+    "test:rules": "firebase emulators:exec --only firestore \"node --test firestore.rules.test.mjs\"",
+    "test:workflow": "firebase emulators:exec --only firestore \"npm.cmd --prefix functions test\""
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

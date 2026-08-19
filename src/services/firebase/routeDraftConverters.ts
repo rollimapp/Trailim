@@ -48,6 +48,12 @@ export const draftWriteData = (draft: RouteDraft): DocumentData => withoutUndefi
   updatedAt: Timestamp.fromDate(new Date(draft.updatedAt)),
 }) as DocumentData;
 
+export const draftAuthoringWriteData = (draft: RouteDraft): DocumentData => withoutUndefined({
+  content: draft.content,
+  updatedByUserId: draft.updatedByUserId,
+  updatedAt: Timestamp.fromDate(new Date(draft.updatedAt)),
+}) as DocumentData;
+
 export const draftStationWriteData = (station: RouteStationDraft, draftId: string): DocumentData =>
   withoutUndefined({ ...station, draftId }) as DocumentData;
 

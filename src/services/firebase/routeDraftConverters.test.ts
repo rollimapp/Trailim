@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Timestamp } from 'firebase/firestore';
 import type { RouteDraft, RouteStationDraft } from '../../types/vs1.ts';
 import {
+  draftAuthoringWriteData,
   draftStationConverter,
   draftStationWriteData,
   draftWriteData,
@@ -32,6 +33,26 @@ test('draft adapter stores stations separately with explicit draft identity', ()
   assert.equal('stations' in storedDraft, false);
   assert.equal(storedStation.draftId, draft.id);
   assert.equal(storedStation.routeId, draft.routeId);
+});
+
+test('authoring draft updates cannot clear or replace protected workflow metadata', () => {
+  const draft = {
+    id: 'draft-1',
+    routeId: 'route-1',
+    organizationId: 'org-1',
+    ownerTeamId: 'team-1',
+    basedOnVersionId: 'version-1',
+    content: { title: 'Edited title' },
+    stations: [],
+    updatedByUserId: 'user-1',
+    updatedAt: '2026-01-02T00:00:00.000Z',
+  } as RouteDraft;
+
+  const update = draftAuthoringWriteData(draft);
+  assert.deepEqual(Object.keys(update).sort(), ['content', 'updatedAt', 'updatedByUserId']);
+  assert.equal('basedOnVersionId' in update, false);
+  assert.equal('routeId' in update, false);
+  assert.equal('ownerTeamId' in update, false);
 });
 
 test('route converter rejects an id that does not match the document path', () => {

@@ -18,6 +18,7 @@ import { getFirebaseServices } from './firebaseClient';
 import {
   draftStationConverter,
   draftStationWriteData,
+  draftAuthoringWriteData,
   draftWriteData,
   routeConverter,
   routeDraftConverter,
@@ -122,8 +123,8 @@ export class FirestoreRouteDraftRepository {
     const existingStations = await getDocs(stationsReference);
     const incomingIds = new Set(draft.stations.map(station => station.id));
     const batch = writeBatch(firestore);
-    batch.set(doc(firestore, 'routes', draft.routeId, 'drafts', draft.id), {
-      ...draftWriteData(draft),
+    batch.update(doc(firestore, 'routes', draft.routeId, 'drafts', draft.id), {
+      ...draftAuthoringWriteData(draft),
       updatedAt: serverTimestamp(),
     });
     existingStations.docs.filter(item => !incomingIds.has(item.id)).forEach(item => batch.delete(item.ref));

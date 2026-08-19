@@ -242,6 +242,23 @@ export interface SnapshotInput {
   visibility: 'class' | 'school';
 }
 
+const assertLegacyStationsMatchDraft = (
+  draftStations: RouteStationDraft[],
+  legacyStations: LegacyStation[],
+) => {
+  const legacyById = new Map(legacyStations.map(station => [station.id, station]));
+  if (legacyById.size !== legacyStations.length || legacyStations.length !== draftStations.length) {
+    throw new Error('Cannot snapshot route draft: legacy station identities do not match the submitted draft');
+  }
+
+  for (const draftStation of draftStations) {
+    const legacyStation = legacyById.get(draftStation.id);
+    if (!legacyStation || JSON.stringify(toRouteStationDraft(legacyStation)) !== JSON.stringify(draftStation)) {
+      throw new Error(`Cannot snapshot route draft: legacy station ${draftStation.id} does not match the submitted draft`);
+    }
+  }
+};
+
 export const createRouteVersionSnapshot = ({
   draft,
   legacyStations,
@@ -251,23 +268,21 @@ export const createRouteVersionSnapshot = ({
   submittedAt,
   visibility,
 }: SnapshotInput): RouteVersionSnapshotBundle => {
+  assertLegacyStationsMatchDraft(draft.stations, legacyStations);
+
+  const legacyById = new Map(legacyStations.map(station => [station.id, station]));
   const answerKeys: AnswerKey[] = [];
-  const stations: RouteStationSnapshot[] = legacyStations
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map(station => {
-      const publicTasks = station.tasks.map(task => {
-        const split = splitLegacyTask(task, versionId, station.id);
-        answerKeys.push(split.answerKey);
-        return split.publicTask;
-      });
-      const draftStation = toRouteStationDraft(station);
-      return {
-        ...draftStation,
-        routeVersionId: versionId,
-        tasks: publicTasks,
-      };
+  const stations: RouteStationSnapshot[] = draft.stations.map(draftStation => {
+    const legacyStation = legacyById.get(draftStation.id)!;
+    legacyStation.tasks.forEach(task => {
+      answerKeys.push(splitLegacyTask(task, versionId, draftStation.id).answerKey);
     });
+
+    return {
+      ...structuredClone(draftStation),
+      routeVersionId: versionId,
+    };
+  });
 
   const version: Vs1RouteVersion = {
     id: versionId,

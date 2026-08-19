@@ -140,3 +140,22 @@ test('createRouteVersionSnapshot freezes an independent public snapshot and prot
   assert.equal(snapshot.answerKeys[0].routeVersionId, 'version-1');
   assert.deepEqual(snapshot.answerKeys[0].validation, { kind: 'option_ids', correctOptionIds: ['a'] });
 });
+
+test('createRouteVersionSnapshot rejects stale legacy stations instead of mixing snapshot state', () => {
+  const draft = toRouteDraft(route, [station]);
+  const staleStation = structuredClone(station);
+  staleStation.title = 'Stale station title';
+
+  assert.throws(
+    () => createRouteVersionSnapshot({
+      draft,
+      legacyStations: [staleStation],
+      versionId: 'version-2',
+      versionNumber: 2,
+      submittedByUserId: 'student-1',
+      submittedAt: '2026-02-02T00:00:00.000Z',
+      visibility: 'class',
+    }),
+    /does not match the submitted draft/,
+  );
+});

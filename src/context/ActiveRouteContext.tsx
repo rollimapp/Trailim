@@ -51,6 +51,9 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activeParticipationId, setActiveParticipationId] = useState<string | null>(null);
 
+  const activeSubmissionIdsRef = React.useRef<Record<string, string>>({});
+  const submissionsInFlightRef = React.useRef<Record<string, boolean>>({});
+
   const currentStation = activeStations[currentStationIndex] || null;
 
   const startRoute = (route: Route, mode: ExperienceMode, newTeamName: string = '') => {
@@ -375,15 +378,24 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const task = currentStation.tasks.find(t => t.id === taskId);
     if (!task) return { pointsEarned: 0 };
 
+    const key = `${currentStation.id}_${taskId}`;
+    if (submissionsInFlightRef.current[key]) {
+      return { pointsEarned: 0 };
+    }
+
+    if (!activeSubmissionIdsRef.current[key]) {
+      activeSubmissionIdsRef.current[key] = `sub_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+    }
+    const submissionId = activeSubmissionIdsRef.current[key];
+
     let isCorrect: boolean | undefined = false;
     let pointsEarned = 0;
     let feedback = '';
 
-    const submissionId = `sub_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-
     if (activeParticipationId) {
       if (isFirebaseTaskResponseScoringEnabled()) {
         try {
+          submissionsInFlightRef.current[key] = true;
           const res = await firebaseSessionParticipationGateway.submitTaskResponse(
             activeSessionId!,
             currentStation.id,
@@ -399,7 +411,11 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
             : isCorrect === false ? 'Incorrect answer.' : 'Submission received!';
           
           setScore(data.score);
+
+          delete activeSubmissionIdsRef.current[key];
+          delete submissionsInFlightRef.current[key];
         } catch (err) {
+          delete submissionsInFlightRef.current[key];
           console.error('Firebase task submission failed:', err);
           alert('Failed to submit answer: ' + (err as Error).message);
           return { pointsEarned: 0 };
@@ -479,6 +495,10 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } catch (err) {
         console.error('Firebase progress update after answer failed:', err);
       }
+    }
+
+    if (!isFirebaseTaskResponseScoringEnabled()) {
+      delete activeSubmissionIdsRef.current[key];
     }
 
     return { isCorrect, pointsEarned, feedback };

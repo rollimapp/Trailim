@@ -238,10 +238,11 @@ export class SessionParticipationService {
     });
   }
 
-  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: unknown, userId: string, submissionId?: string) {
+  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: unknown, userId: string, submissionId: string) {
     requireString(sessionId, 'sessionId');
     requireString(stationId, 'stationId');
     requireString(taskId, 'taskId');
+    requireString(submissionId, 'submissionId');
     const firestore = this.firestore;
     return firestore.runTransaction(async transaction => {
       const sessionRef = firestore.doc(`routeSessions/${sessionId}`);

@@ -29,8 +29,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = language;
   }, [language]);
 
-  // DEV/EMULATOR ONLY: Track switch request sequence to avoid out-of-order execution race conditions
+  // DEV/EMULATOR ONLY: Track switch request sequence and serialize execution
   const lastSwitchIdRef = React.useRef<number>(0);
+  const authQueuePromiseRef = React.useRef<Promise<void>>(Promise.resolve());
 
   const syncWithFirebase = async (userId: string, switchId: number) => {
     if (!isFirebaseConfigured()) return;
@@ -63,7 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const startSwitchId = ++lastSwitchIdRef.current;
-    syncWithFirebase('student-1', startSwitchId);
+    authQueuePromiseRef.current = authQueuePromiseRef.current.then(async () => {
+      await syncWithFirebase('student-1', startSwitchId);
+    });
   }, []);
 
   const switchUser = (userId: 'student-1' | 'teacher-1' | 'approver-1' | 'guest') => {
@@ -94,7 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setCurrentUser(mockUsers[userId] || mockUsers['student-1']);
     }
-    syncWithFirebase(userId, nextSwitchId);
+
+    authQueuePromiseRef.current = authQueuePromiseRef.current.then(async () => {
+      await syncWithFirebase(userId, nextSwitchId);
+    });
   };
 
 

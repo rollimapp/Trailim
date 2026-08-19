@@ -233,42 +233,42 @@ const joinedSession = async () => {
 
 test('trusted option evaluation awards configured points once and rejects forged option shapes', async () => {
   const sessionId = await joinedSession();
-  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a');
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 'sub-1');
   assert.equal(result.isCorrect, true);
   assert.equal(result.pointsAwarded, 10);
   assert.equal(result.score, 10);
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a'), /Retry is not allowed/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 'sub-2'), /Retry is not allowed/);
   assert.equal((await firestore.collection(`routeSessions/${sessionId}/participations/student-a/responses`).get()).size, 1);
 });
 
 test('incorrect answer awards zero and option IDs are strict', async () => {
   let sessionId = await joinedSession();
-  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'b', 'student-a');
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'b', 'student-a', 'sub-3');
   assert.equal(result.isCorrect, false);
   assert.equal(result.pointsAwarded, 0);
   sessionId = (await createSession()).sessionId;
   await service.joinRouteSession(sessionId, 'student-a');
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['unknown'], 'student-a'), /Unknown option/);
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a', 'a'], 'student-a'), /unique option/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['unknown'], 'student-a', 'sub-4'), /Unknown option/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a', 'a'], 'student-a', 'sub-5'), /unique option/);
 });
 
 test('retry scoring replaces prior award by delta and attempt limit is atomic', async () => {
   const sessionId = await joinedSession();
-  await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a');
-  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a');
+  await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-6');
+  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-7');
   assert.equal(second.pointsAwarded, 8);
   assert.equal(second.score, 8);
-  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a');
+  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-8');
   assert.equal(third.pointsAwarded, 6);
   assert.equal(third.score, 6);
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a'), /Attempt limit/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-9'), /Attempt limit/);
 });
 
 test('concurrent duplicate submission creates one response and cannot inflate score', async () => {
   const sessionId = await joinedSession();
   const results = await Promise.allSettled([
-    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'),
-    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'),
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-con-1'),
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-con-2'),
   ]);
   assert.equal(results.filter(item => item.status === 'fulfilled').length, 1);
   assert.equal((await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data().score, 10);
@@ -276,8 +276,8 @@ test('concurrent duplicate submission creates one response and cannot inflate sc
 
 test('accepted text respects exact case policy', async () => {
   const sessionId = await joinedSession();
-  const sensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'trail', 'student-a');
-  const insensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-insensitive', 'trail', 'student-a');
+  const sensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'trail', 'student-a', 'sub-10');
+  const insensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-insensitive', 'trail', 'student-a', 'sub-11');
   assert.equal(sensitive.isCorrect, false);
   assert.equal(insensitive.isCorrect, true);
   assert.equal(insensitive.pointsAwarded, 4);
@@ -285,8 +285,8 @@ test('accepted text respects exact case policy', async () => {
 
 test('submission-only awards configured points while manual review awards none', async () => {
   const sessionId = await joinedSession();
-  const submitted = await service.submitTaskResponse(sessionId, 'station-1', 'submission-task', 'evidence', 'student-a');
-  const manual = await service.submitTaskResponse(sessionId, 'station-1', 'manual-task', 'essay', 'student-a');
+  const submitted = await service.submitTaskResponse(sessionId, 'station-1', 'submission-task', 'evidence', 'student-a', 'sub-12');
+  const manual = await service.submitTaskResponse(sessionId, 'station-1', 'manual-task', 'essay', 'student-a', 'sub-13');
   assert.equal(submitted.evaluationStatus, 'evaluated');
   assert.equal(submitted.isCorrect, undefined);
   assert.equal(submitted.pointsAwarded, 3);
@@ -297,25 +297,32 @@ test('submission-only awards configured points while manual review awards none',
 
 test('task, key, identity, membership, and terminal gates fail closed', async () => {
   const sessionId = await joinedSession();
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'missing', 'x', 'student-a'), /Task must exist/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'missing', 'x', 'student-a', 'sub-14'), /Task must exist/);
   await firestore.doc('routes/route-a/versions/version-approved/answerKeys/option-task').update({ stationId: 'station-2' });
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /AnswerKey identity/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-15'), /AnswerKey identity/);
   await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'disabled' });
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a'), /Active organization membership/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a', 'sub-16'), /Active organization membership/);
   await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'active' });
   await service.updateRouteSessionStatus(sessionId, 'completed', 'teacher-a');
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a'), /terminal/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a', 'sub-17'), /terminal/);
 });
 
 test('cancelled session, abandoned participation, other user, and cross-organization caller are denied', async () => {
   let sessionId = await joinedSession();
   await service.updateRouteSessionStatus(sessionId, 'cancelled', 'teacher-a');
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /terminal/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-18'), /terminal/);
   sessionId = await joinedSession();
   await service.abandonParticipation(sessionId, 'student-a');
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /not active/);
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-2'), /not active/);
-  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'teacher-b'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-19'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-2', 'sub-20'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'teacher-b', 'sub-21'), /not active/);
+});
+
+test('validation - submissionId is strictly required, non-empty and string', async () => {
+  const sessionId = await joinedSession();
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', undefined), /submissionId is required/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', ''), /submissionId is required/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 123), /submissionId is required/);
 });
 
 test('idempotency - same submission ID deduplicates concurrent and sequential attempts', async () => {

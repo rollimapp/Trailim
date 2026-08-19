@@ -89,10 +89,14 @@ export const abandonParticipation = onCall(async request => {
 
 export const submitTaskResponse = onCall(async request => {
   try {
+    const submissionId = request.data?.submissionId;
+    if (typeof submissionId !== 'string' || submissionId.length === 0) {
+      throw new HttpsError('invalid-argument', 'submissionId is required');
+    }
     return await sessionService.submitTaskResponse(
       request.data.sessionId, request.data.stationId, request.data.taskId,
       request.data.answer, authenticatedUserId(request.auth),
-      request.data.submissionId,
+      submissionId,
     );
   } catch (error) { return translateError(error); }
 });

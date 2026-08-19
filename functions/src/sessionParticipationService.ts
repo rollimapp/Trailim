@@ -383,7 +383,7 @@ export class SessionParticipationService {
       if (isCorrect === true) {
         awarded = Math.max(0, (Number(key.pointsAwarded) || 0) - (Number(key.penaltyPerAttempt) || 0) * (attemptCount - 1));
       }
-      const previousAward = Math.max(0, Number(previous?.pointsAwarded) || 0);
+      const previousAward = Math.max(0, Number(privateData?.pointsAwarded) || 0);
       const currentScore = Math.max(0, Number(participation.score) || 0);
       const nextScore = Math.max(0, currentScore - previousAward + awarded);
       const now = Timestamp.now();
@@ -419,8 +419,9 @@ export class SessionParticipationService {
         }
       };
 
+      const maxHistory = Math.max(100, (Number(key.attemptLimit) || 0) * 2);
       const keys = Object.keys(nextProcessed);
-      if (keys.length > 10) {
+      if (keys.length > maxHistory) {
         delete nextProcessed[keys[0]];
       }
 

@@ -86,15 +86,15 @@ beforeEach(async () => {
     }),
     seed('routes/route-a/versions/version-approved/answerKeys/reveal-immediate', {
       id: 'reveal-immediate', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-immediate',
-      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
     }),
     seed('routes/route-a/versions/version-approved/answerKeys/reveal-after', {
       id: 'reveal-after', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-after',
-      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
     }),
     seed('routes/route-a/versions/version-approved/answerKeys/reveal-never', {
       id: 'reveal-never', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-never',
-      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
     }),
   ]);
 });
@@ -422,12 +422,12 @@ test('reveal policy - immediate, after_route, and never disclosures', async () =
   // 1. Submit immediate reveal task response
   const immRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-immediate', 'a', 'student-a', 'id-imm');
   assert.equal(immRes.isCorrect, true);
-  assert.equal(immRes.pointsAwarded, 5);
+  assert.equal(immRes.pointsAwarded, 10);
 
   // Verify fields exist on public document
   const immDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-immediate')}`).get()).data();
   assert.equal(immDoc.isCorrect, true);
-  assert.equal(immDoc.pointsAwarded, 5);
+  assert.equal(immDoc.pointsAwarded, 10);
 
   // 2. Submit after_route reveal task response (before participation completion)
   const aftRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'id-aft');
@@ -442,7 +442,7 @@ test('reveal policy - immediate, after_route, and never disclosures', async () =
   // But verify they are stored on private evaluation record
   const aftPriv = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-after')}/privateEvaluation/record`).get()).data();
   assert.equal(aftPriv.isCorrect, true);
-  assert.equal(aftPriv.pointsAwarded, 5);
+  assert.equal(aftPriv.pointsAwarded, 10);
 
   // 3. Submit never reveal task response
   const nevRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'id-nev');
@@ -452,4 +452,70 @@ test('reveal policy - immediate, after_route, and never disclosures', async () =
   const nevDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-never')}`).get()).data();
   assert.equal(nevDoc.isCorrect, undefined);
   assert.equal(nevDoc.pointsAwarded, undefined);
+});
+
+test('reveal policy scoring - retry and scoring behavior for hidden and immediate policies', async () => {
+  const sessionId = await joinedSession();
+
+  // 1. after_route retry:
+  // attempt 1 correct = 10 points
+  const r1 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'aft-id-1');
+  assert.equal(r1.pointsAwarded, undefined); // hidden
+  assert.equal(r1.score, 10);
+
+  // attempt 2 correct with penalty = 8 points (penalty = 2)
+  const r2 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'aft-id-2');
+  assert.equal(r2.pointsAwarded, undefined); // hidden
+  // Score should be 8 (10 - 10 + 8), NOT 18!
+  assert.equal(r2.score, 8);
+
+  // 2. never retry:
+  // attempt 1 correct = 10 points
+  const n1 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'nev-id-1');
+  assert.equal(n1.pointsAwarded, undefined); // hidden
+  // Score is now 8 (from before) + 10 = 18
+  assert.equal(n1.score, 18);
+
+  // attempt 2 correct with penalty = 8 points
+  const n2 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'nev-id-2');
+  assert.equal(n2.pointsAwarded, undefined); // hidden
+  // Score should be 8 (from before) + 8 = 16 (NOT 18 + 8 = 26!)
+  assert.equal(n2.score, 16);
+
+  // 3. incorrect -> correct hidden policy:
+  const sess2 = await joinedSession();
+  // attempt 1 incorrect = 0 points
+  const i1 = await service.submitTaskResponse(sess2, 'station-1', 'reveal-after', 'b', 'student-a', 'inc-id-1');
+  assert.equal(i1.score, 0);
+
+  // attempt 2 correct = 8 points (10 - 2 penalty)
+  const i2 = await service.submitTaskResponse(sess2, 'station-1', 'reveal-after', 'a', 'student-a', 'inc-id-2');
+  assert.equal(i2.score, 8); // score == 8 (0 - 0 + 8)
+
+  // 4. correct -> incorrect hidden policy:
+  const sess3 = await joinedSession();
+  // attempt 1 correct = 10 points
+  const c1 = await service.submitTaskResponse(sess3, 'station-1', 'reveal-after', 'a', 'student-a', 'cor-id-1');
+  assert.equal(c1.score, 10);
+
+  // attempt 2 incorrect = 0 points
+  const c2 = await service.submitTaskResponse(sess3, 'station-1', 'reveal-after', 'b', 'student-a', 'cor-id-2');
+  assert.equal(c2.score, 0); // score == 0 (10 - 10 + 0)
+
+  // 5. immediate policy still behaves identically:
+  const sess4 = await joinedSession();
+  const imm1 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-1');
+  assert.equal(imm1.isCorrect, true);
+  assert.equal(imm1.pointsAwarded, 10);
+  assert.equal(imm1.score, 10);
+
+  const imm2 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-2');
+  assert.equal(imm2.isCorrect, true);
+  assert.equal(imm2.pointsAwarded, 8);
+  assert.equal(imm2.score, 8);
+
+  // 6. replay of old submission ID remains idempotent and does not alter score:
+  const replayImm1 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-1');
+  assert.equal(replayImm1.pointsAwarded, 10);
+  assert.equal(replayImm1.score, 8); // overall score remains 8 (since imm2 set it to 8)
 });

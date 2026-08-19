@@ -6,7 +6,7 @@ declare global {
   var __trailimFunctionsEmulatorConnected: boolean | undefined;
 }
 
-const getCallableFunctions = () => {
+export const getCallableFunctions = () => {
   const { app } = getFirebaseServices();
   const functions = getFunctions(app);
   if (

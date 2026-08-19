@@ -35,6 +35,10 @@ service cloud.firestore {
       return /databases/$(database)/documents/routes/$(routeId);
     }
 
+    function sessionPath(sessionId) {
+      return /databases/$(database)/documents/routeSessions/$(sessionId);
+    }
+
     function draftPath(routeId, draftId) {
       return /databases/$(database)/documents/routes/$(routeId)/drafts/$(draftId);
     }
@@ -263,11 +267,21 @@ service cloud.firestore {
       }
 
       match /versions/{routeVersionId} {
-        allow read: if canManageRoute(get(routePath(routeId)).data);
+        allow read: if canManageRoute(get(routePath(routeId)).data)
+          || (
+            isActiveMember(resource.data.organizationId)
+            && resource.data.status == 'approved'
+            && get(routePath(routeId)).data.approvedVersionId == routeVersionId
+          );
         allow write: if false;
 
         match /stations/{stationId} {
-          allow read: if canManageRoute(get(routePath(routeId)).data);
+          allow read: if canManageRoute(get(routePath(routeId)).data)
+            || (
+              isActiveMember(get(routePath(routeId)).data.organizationId)
+              && get(/databases/$(database)/documents/routes/$(routeId)/versions/$(routeVersionId)).data.status == 'approved'
+              && get(routePath(routeId)).data.approvedVersionId == routeVersionId
+            );
           allow write: if false;
         }
 
@@ -283,6 +297,22 @@ service cloud.firestore {
       allow list: if isTeacher(resource.data.organizationId)
         || canManageRoute(get(routePath(resource.data.routeId)).data);
       allow write: if false;
+    }
+
+    match /routeSessions/{sessionId} {
+      allow read: if isActiveMember(resource.data.organizationId);
+      allow write: if false;
+
+      match /participations/{participantUserId} {
+        allow read: if signedIn()
+          && exists(sessionPath(sessionId))
+          && isActiveMember(get(sessionPath(sessionId)).data.organizationId)
+          && (
+            request.auth.uid == participantUserId
+            || isTeacher(get(sessionPath(sessionId)).data.organizationId)
+          );
+        allow write: if false;
+      }
     }
   }
 }

@@ -99,6 +99,11 @@ beforeEach(async () => {
   await environment.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     const existingRoute = route('route-a', 'org-a', 'creator-team', 'creator-a', 'draft-a');
+    const approvedRoute = {
+      ...route('route-approved', 'org-a', 'creator-team', 'creator-a', 'draft-approved'),
+      status: 'approved', visibility: 'class', approvedVersionId: 'version-approved',
+      latestSubmittedVersionId: 'version-approved',
+    };
     await Promise.all([
       setDoc(doc(db, 'organizations', 'org-a'), { id: 'org-a', name: 'Organization A', status: 'active' }),
       setDoc(doc(db, 'organizations', 'org-b'), { id: 'org-b', name: 'Organization B', status: 'active' }),
@@ -115,6 +120,16 @@ beforeEach(async () => {
       setDoc(doc(db, 'teams', 'managed-team', 'members', 'manager-a'), teamMember('managed-team', 'manager-a', ['manager'])),
       setDoc(doc(db, 'teams', 'team-b'), team('team-b', 'org-b', 'student-b')),
       setDoc(doc(db, 'routes', 'route-a'), existingRoute),
+      setDoc(doc(db, 'routes', 'route-approved'), approvedRoute),
+      setDoc(doc(db, 'routes', 'route-approved', 'versions', 'version-approved'), {
+        id: 'version-approved', routeId: 'route-approved', organizationId: 'org-a', ownerTeamId: 'creator-team',
+        versionNumber: 1, sourceDraftId: 'draft-approved', content: { title: 'Approved route' },
+        stationIds: ['station-approved'], createdByUserId: 'creator-a',
+        submittedAt: new Date('2026-01-02T00:00:00.000Z'), status: 'approved', visibility: 'class',
+      }),
+      setDoc(doc(db, 'routes', 'route-approved', 'versions', 'version-approved', 'stations', 'station-approved'), {
+        ...versionStation('route-approved', 'version-approved', 'station-approved'),
+      }),
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'draft-a'), routeDraft(existingRoute, 'draft-a')),
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'other-draft'), routeDraft(existingRoute, 'other-draft')),
       setDoc(doc(db, 'routes', 'route-a', 'drafts', 'draft-a', 'stations', 'station-1'), draftStation('route-a', 'draft-a')),
@@ -135,6 +150,21 @@ beforeEach(async () => {
         id: 'review-1', organizationId: 'org-a', routeId: 'route-a', routeVersionId: 'version-1',
         submittedByUserId: 'creator-a', submittedAt: new Date('2026-01-02T00:00:00.000Z'),
         status: 'pending', createdAt: new Date('2026-01-02T00:00:00.000Z'),
+      }),
+      setDoc(doc(db, 'routeSessions', 'session-1'), {
+        id: 'session-1', organizationId: 'org-a', routeId: 'route-a', routeVersionId: 'version-1',
+        createdByUserId: 'teacher-a', title: 'Class session', mode: 'learning', status: 'active',
+        createdAt: new Date('2026-01-03T00:00:00.000Z'), openedAt: new Date('2026-01-03T00:00:00.000Z'),
+      }),
+      setDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a'), {
+        id: 'session-1_student-a', sessionId: 'session-1', routeId: 'route-a', routeVersionId: 'version-1',
+        participantUserId: 'student-a', status: 'active', startedAt: new Date('2026-01-03T00:00:00.000Z'),
+        completedStationIds: [], progressPercentage: 0, score: 0, updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+      }),
+      setDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'creator-a'), {
+        id: 'session-1_creator-a', sessionId: 'session-1', routeId: 'route-a', routeVersionId: 'version-1',
+        participantUserId: 'creator-a', status: 'active', startedAt: new Date('2026-01-03T00:00:00.000Z'),
+        completedStationIds: [], progressPercentage: 0, score: 0, updatedAt: new Date('2026-01-03T00:00:00.000Z'),
       }),
     ]);
   });
@@ -459,4 +489,49 @@ test('ordinary clients cannot create or mutate version and review workflow recor
     status: 'approved',
   }));
   await assertFails(updateDoc(doc(teacherDb, 'reviews', 'review-1'), { status: 'approved' }));
+});
+
+test('same-organization participant reads session and own participation only', async () => {
+  const db = environment.authenticatedContext('student-a').firestore();
+  await assertSucceeds(getDoc(doc(db, 'routeSessions', 'session-1')));
+  await assertSucceeds(getDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a')));
+  await assertFails(getDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'creator-a')));
+});
+
+test('participant reads only the route current approved public version while protected data stays denied', async () => {
+  const db = environment.authenticatedContext('student-a').firestore();
+  await assertSucceeds(getDoc(doc(db, 'routes', 'route-approved', 'versions', 'version-approved')));
+  await assertSucceeds(getDoc(doc(db, 'routes', 'route-approved', 'versions', 'version-approved', 'stations', 'station-approved')));
+  await assertFails(getDoc(doc(db, 'routes', 'route-a', 'versions', 'version-1')));
+  await assertFails(getDoc(doc(db, 'routes', 'route-approved', 'versions', 'version-approved', 'answerKeys', 'task-1')));
+});
+
+test('same-organization teacher can inspect participation summaries', async () => {
+  const db = environment.authenticatedContext('teacher-a').firestore();
+  await assertSucceeds(getDocs(collection(db, 'routeSessions', 'session-1', 'participations')));
+});
+
+test('cross-organization and inactive users cannot read sessions or participations', async () => {
+  const crossOrg = environment.authenticatedContext('student-b').firestore();
+  await assertFails(getDoc(doc(crossOrg, 'routeSessions', 'session-1')));
+  await assertFails(getDoc(doc(crossOrg, 'routeSessions', 'session-1', 'participations', 'student-a')));
+  await environment.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'organizations', 'org-a', 'memberships', 'student-a'), { status: 'disabled' });
+  });
+  const inactive = environment.authenticatedContext('student-a').firestore();
+  await assertFails(getDoc(doc(inactive, 'routeSessions', 'session-1')));
+  await assertFails(getDoc(doc(inactive, 'routeSessions', 'session-1', 'participations', 'student-a')));
+});
+
+test('ordinary clients cannot create sessions or mutate participation identity, score, or progress', async () => {
+  const participantDb = environment.authenticatedContext('student-a').firestore();
+  const teacherDb = environment.authenticatedContext('teacher-a').firestore();
+  await assertFails(setDoc(doc(teacherDb, 'routeSessions', 'forged-session'), {
+    id: 'forged-session', organizationId: 'org-a', routeId: 'route-a', routeVersionId: 'version-1',
+    createdByUserId: 'teacher-a', title: 'Forged', mode: 'learning', status: 'open',
+  }));
+  const participationRef = doc(participantDb, 'routeSessions', 'session-1', 'participations', 'student-a');
+  await assertFails(updateDoc(participationRef, { score: 99 }));
+  await assertFails(updateDoc(participationRef, { routeVersionId: 'other-version' }));
+  await assertFails(updateDoc(participationRef, { completedStationIds: ['station-1'], progressPercentage: 100 }));
 });

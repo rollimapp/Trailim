@@ -29,23 +29,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = language;
   }, [language]);
 
-  const syncWithFirebase = async (userId: string) => {
+  // DEV/EMULATOR ONLY: Track switch request sequence to avoid out-of-order execution race conditions
+  const lastSwitchIdRef = React.useRef<number>(0);
+
+  const syncWithFirebase = async (userId: string, switchId: number) => {
     if (!isFirebaseConfigured()) return;
     try {
       const services = getFirebaseServices();
       if (userId === 'guest') {
+        if (switchId !== lastSwitchIdRef.current) return;
         await signOut(services.auth);
         return;
       }
+
+      // DEV/EMULATOR ONLY bootstrap flow: seed database and authenticate with dev tokens
       const functions = getCallableFunctions();
       const seedCallable = httpsCallable(functions, 'devSeedDatabase');
       await seedCallable();
+      if (switchId !== lastSwitchIdRef.current) return;
 
       const tokenCallable = httpsCallable(functions, 'getDevCustomToken');
       const tokenResult = await tokenCallable({ uid: userId });
+      if (switchId !== lastSwitchIdRef.current) return;
       const token = (tokenResult.data as any).token;
 
       await signInWithCustomToken(services.auth, token);
+      if (switchId !== lastSwitchIdRef.current) return;
       console.log(`Successfully authenticated in Firebase Auth as: ${userId}`);
     } catch (error) {
       console.error('Firebase Auth sync failed:', error);
@@ -53,10 +62,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    syncWithFirebase('student-1');
+    const startSwitchId = ++lastSwitchIdRef.current;
+    syncWithFirebase('student-1', startSwitchId);
   }, []);
 
   const switchUser = (userId: 'student-1' | 'teacher-1' | 'approver-1' | 'guest') => {
+    const nextSwitchId = ++lastSwitchIdRef.current;
     if (userId === 'guest') {
       setCurrentUser({
         id: 'guest-user',
@@ -79,11 +90,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdRoutesCount: 0,
         earnedBadges: [],
         languagePreference: language,
-      });
+      } as unknown as User);
     } else {
       setCurrentUser(mockUsers[userId] || mockUsers['student-1']);
     }
-    syncWithFirebase(userId);
+    syncWithFirebase(userId, nextSwitchId);
   };
 
 

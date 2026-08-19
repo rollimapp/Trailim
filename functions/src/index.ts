@@ -92,6 +92,7 @@ export const submitTaskResponse = onCall(async request => {
     return await sessionService.submitTaskResponse(
       request.data.sessionId, request.data.stationId, request.data.taskId,
       request.data.answer, authenticatedUserId(request.auth),
+      request.data.submissionId,
     );
   } catch (error) { return translateError(error); }
 });

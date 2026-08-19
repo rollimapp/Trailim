@@ -379,6 +379,8 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     let pointsEarned = 0;
     let feedback = '';
 
+    const submissionId = `sub_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+
     if (activeParticipationId) {
       if (isFirebaseTaskResponseScoringEnabled()) {
         try {
@@ -386,7 +388,8 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
             activeSessionId!,
             currentStation.id,
             taskId,
-            answer
+            answer,
+            submissionId
           );
           const data = res.data as any;
           isCorrect = data.isCorrect;

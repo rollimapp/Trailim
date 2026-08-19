@@ -317,3 +317,53 @@ test('cancelled session, abandoned participation, other user, and cross-organiza
   await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-2'), /not active/);
   await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'teacher-b'), /not active/);
 });
+
+test('idempotency - same submission ID deduplicates concurrent and sequential attempts', async () => {
+  const sessionId = await joinedSession();
+
+  // 1. Concurrent same submission ID with allowRetry=true => one attempt
+  const results = await Promise.all([
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1'),
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1'),
+  ]);
+  assert.equal(results[0].attemptCount, 1);
+  assert.equal(results[1].attemptCount, 1);
+  assert.equal(results[0].score, 0);
+  assert.equal(results[1].score, 0);
+
+  // 2. Network replay same submission ID => same result, same attemptCount, same score
+  const replay = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1');
+  assert.equal(replay.attemptCount, 1);
+  assert.equal(replay.pointsAwarded, 0);
+  assert.equal(replay.score, 0);
+
+  // 3. New submission ID => second attempt (which is a genuine new attempt)
+  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-2');
+  assert.equal(second.attemptCount, 2);
+  assert.equal(second.pointsAwarded, 8);
+  assert.equal(second.score, 8);
+
+  // 4. Replay of second attempt => same result, attemptCount = 2, score = 8
+  const replaySecond = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-2');
+  assert.equal(replaySecond.attemptCount, 2);
+  assert.equal(replaySecond.pointsAwarded, 8);
+  assert.equal(replaySecond.score, 8);
+
+  // 5. New submission ID for third attempt => third attempt (which is a genuine new attempt)
+  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-3');
+  assert.equal(third.attemptCount, 3);
+  assert.equal(third.pointsAwarded, 6);
+  assert.equal(third.score, 6);
+
+  // 6. Attempt limit still enforced
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-4'),
+    /Attempt limit exceeded/
+  );
+
+  // 7. But replay of the third attempt (same submission ID) is still allowed and returns the same result
+  const replayThird = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-3');
+  assert.equal(replayThird.attemptCount, 3);
+  assert.equal(replayThird.pointsAwarded, 6);
+  assert.equal(replayThird.score, 6);
+});

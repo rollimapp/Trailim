@@ -33,8 +33,8 @@ export class FirebaseSessionParticipationGateway {
     return httpsCallable(getCallableFunctions(), 'abandonParticipation')({ sessionId });
   }
 
-  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: string | string[]) {
-    return httpsCallable(getCallableFunctions(), 'submitTaskResponse')({ sessionId, stationId, taskId, answer });
+  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: string | string[], submissionId?: string) {
+    return httpsCallable(getCallableFunctions(), 'submitTaskResponse')({ sessionId, stationId, taskId, answer, submissionId });
   }
 }
 

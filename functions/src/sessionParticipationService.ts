@@ -238,7 +238,7 @@ export class SessionParticipationService {
     });
   }
 
-  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: unknown, userId: string) {
+  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: unknown, userId: string, submissionId?: string) {
     requireString(sessionId, 'sessionId');
     requireString(stationId, 'stationId');
     requireString(taskId, 'taskId');
@@ -302,6 +302,18 @@ export class SessionParticipationService {
         previous.stationId !== stationId || previous.taskId !== taskId)) {
         throw new WorkflowError('failed-precondition', 'Existing TaskResponse identity is incoherent');
       }
+
+      if (submissionId && typeof submissionId === 'string' && previousSnapshot.exists && previous?.lastSubmissionId === submissionId) {
+        return {
+          responseId: responseRef.id,
+          evaluationStatus: previous.evaluationStatus,
+          isCorrect: previous.isCorrect,
+          pointsAwarded: previous.pointsAwarded,
+          attemptCount: previous.attemptCount,
+          score: participation.score,
+        };
+      }
+
       const attemptCount = Number(previous?.attemptCount || 0) + 1;
       if (previousSnapshot.exists && key.allowRetry !== true) {
         throw new WorkflowError('failed-precondition', 'Retry is not allowed');
@@ -354,6 +366,7 @@ export class SessionParticipationService {
         routeId: session.routeId, routeVersionId: session.routeVersionId, stationId, taskId,
         answer: normalizedAnswer, submittedAt: previous?.submittedAt || now, updatedAt: now,
         evaluationStatus, ...(isCorrect === undefined ? {} : { isCorrect }), pointsAwarded: awarded, attemptCount,
+        lastSubmissionId: submissionId || null,
       };
       if (previousSnapshot.exists) transaction.set(responseRef, response);
       else transaction.create(responseRef, response);

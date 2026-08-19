@@ -48,6 +48,39 @@ beforeEach(async () => {
       versionNumber: 2, sourceDraftId: 'draft-a', content: { title: 'Route V2' }, stationIds: [],
       createdByUserId: 'creator-a', submittedAt: now, status: 'submitted', visibility: 'class',
     }),
+    seed('routes/route-a/versions/version-approved/stations/station-1', {
+      id: 'station-1', routeId: 'route-a', routeVersionId: 'version-approved', position: 1,
+      tasks: [
+        { id: 'option-task', type: 'multiple_choice', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'retry-task', type: 'multiple_choice', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'text-case', type: 'open_text' }, { id: 'text-insensitive', type: 'open_text' },
+        { id: 'submission-task', type: 'reflection' }, { id: 'manual-task', type: 'open_text' },
+      ],
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/option-task', {
+      id: 'option-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'option-task',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/retry-task', {
+      id: 'retry-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'retry-task',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/text-case', {
+      id: 'text-case', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'text-case',
+      validation: { kind: 'accepted_text', acceptedAnswers: ['Trail'], caseSensitive: true }, pointsAwarded: 4, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/text-insensitive', {
+      id: 'text-insensitive', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'text-insensitive',
+      validation: { kind: 'accepted_text', acceptedAnswers: ['Trail'], caseSensitive: false }, pointsAwarded: 4, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/submission-task', {
+      id: 'submission-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'submission-task',
+      validation: { kind: 'submission_only' }, pointsAwarded: 3, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/manual-task', {
+      id: 'manual-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'manual-task',
+      validation: { kind: 'manual_review' }, pointsAwarded: 20, allowRetry: false, penaltyPerAttempt: 0,
+    }),
   ]);
 });
 
@@ -190,4 +223,97 @@ test('inactive organization member cannot join and abandon is idempotent', async
   await service.abandonParticipation(sessionId, 'student-a');
   await service.abandonParticipation(sessionId, 'student-a');
   assert.equal((await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data().status, 'abandoned');
+});
+
+const joinedSession = async () => {
+  const { sessionId } = await createSession();
+  await service.joinRouteSession(sessionId, 'student-a');
+  return sessionId;
+};
+
+test('trusted option evaluation awards configured points once and rejects forged option shapes', async () => {
+  const sessionId = await joinedSession();
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a');
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.pointsAwarded, 10);
+  assert.equal(result.score, 10);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a'), /Retry is not allowed/);
+  assert.equal((await firestore.collection(`routeSessions/${sessionId}/participations/student-a/responses`).get()).size, 1);
+});
+
+test('incorrect answer awards zero and option IDs are strict', async () => {
+  let sessionId = await joinedSession();
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'b', 'student-a');
+  assert.equal(result.isCorrect, false);
+  assert.equal(result.pointsAwarded, 0);
+  sessionId = (await createSession()).sessionId;
+  await service.joinRouteSession(sessionId, 'student-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['unknown'], 'student-a'), /Unknown option/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a', 'a'], 'student-a'), /unique option/);
+});
+
+test('retry scoring replaces prior award by delta and attempt limit is atomic', async () => {
+  const sessionId = await joinedSession();
+  await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a');
+  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a');
+  assert.equal(second.pointsAwarded, 8);
+  assert.equal(second.score, 8);
+  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a');
+  assert.equal(third.pointsAwarded, 6);
+  assert.equal(third.score, 6);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a'), /Attempt limit/);
+});
+
+test('concurrent duplicate submission creates one response and cannot inflate score', async () => {
+  const sessionId = await joinedSession();
+  const results = await Promise.allSettled([
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'),
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'),
+  ]);
+  assert.equal(results.filter(item => item.status === 'fulfilled').length, 1);
+  assert.equal((await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data().score, 10);
+});
+
+test('accepted text respects exact case policy', async () => {
+  const sessionId = await joinedSession();
+  const sensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'trail', 'student-a');
+  const insensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-insensitive', 'trail', 'student-a');
+  assert.equal(sensitive.isCorrect, false);
+  assert.equal(insensitive.isCorrect, true);
+  assert.equal(insensitive.pointsAwarded, 4);
+});
+
+test('submission-only awards configured points while manual review awards none', async () => {
+  const sessionId = await joinedSession();
+  const submitted = await service.submitTaskResponse(sessionId, 'station-1', 'submission-task', 'evidence', 'student-a');
+  const manual = await service.submitTaskResponse(sessionId, 'station-1', 'manual-task', 'essay', 'student-a');
+  assert.equal(submitted.evaluationStatus, 'evaluated');
+  assert.equal(submitted.isCorrect, undefined);
+  assert.equal(submitted.pointsAwarded, 3);
+  assert.equal(manual.evaluationStatus, 'manual_review');
+  assert.equal(manual.pointsAwarded, 0);
+  assert.equal(manual.score, 3);
+});
+
+test('task, key, identity, membership, and terminal gates fail closed', async () => {
+  const sessionId = await joinedSession();
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'missing', 'x', 'student-a'), /Task must exist/);
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/option-task').update({ stationId: 'station-2' });
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /AnswerKey identity/);
+  await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'disabled' });
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a'), /Active organization membership/);
+  await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'active' });
+  await service.updateRouteSessionStatus(sessionId, 'completed', 'teacher-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a'), /terminal/);
+});
+
+test('cancelled session, abandoned participation, other user, and cross-organization caller are denied', async () => {
+  let sessionId = await joinedSession();
+  await service.updateRouteSessionStatus(sessionId, 'cancelled', 'teacher-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /terminal/);
+  sessionId = await joinedSession();
+  await service.abandonParticipation(sessionId, 'student-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-2'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'teacher-b'), /not active/);
 });

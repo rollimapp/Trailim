@@ -255,6 +255,7 @@ export interface Vs1TaskResponse {
   id: string;
   participationId: string;
   sessionId: string;
+  routeId: string;
   routeVersionId: string;
   stationId: string;
   taskId: string;
@@ -265,6 +266,7 @@ export interface Vs1TaskResponse {
   isCorrect?: boolean;
   pointsAwarded?: number;
   feedback?: string;
+  attemptCount?: number;
 }
 
 export interface RouteVersionSnapshotBundle {

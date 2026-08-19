@@ -312,6 +312,17 @@ service cloud.firestore {
             || isTeacher(get(sessionPath(sessionId)).data.organizationId)
           );
         allow write: if false;
+
+        match /responses/{responseId} {
+          allow read: if signedIn()
+            && exists(sessionPath(sessionId))
+            && isActiveMember(get(sessionPath(sessionId)).data.organizationId)
+            && (
+              request.auth.uid == participantUserId
+              || isTeacher(get(sessionPath(sessionId)).data.organizationId)
+            );
+          allow write: if false;
+        }
       }
     }
   }

@@ -166,6 +166,12 @@ beforeEach(async () => {
         participantUserId: 'creator-a', status: 'active', startedAt: new Date('2026-01-03T00:00:00.000Z'),
         completedStationIds: [], progressPercentage: 0, score: 0, updatedAt: new Date('2026-01-03T00:00:00.000Z'),
       }),
+      setDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-1'), {
+        id: 'response-1', participationId: 'session-1_student-a', sessionId: 'session-1', routeId: 'route-a',
+        routeVersionId: 'version-1', stationId: 'station-1', taskId: 'task-1', answer: ['a'],
+        submittedAt: new Date('2026-01-03T00:00:00.000Z'), updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+        evaluationStatus: 'evaluated', isCorrect: true, pointsAwarded: 10, attemptCount: 1,
+      }),
     ]);
   });
 });
@@ -534,4 +540,24 @@ test('ordinary clients cannot create sessions or mutate participation identity, 
   await assertFails(updateDoc(participationRef, { score: 99 }));
   await assertFails(updateDoc(participationRef, { routeVersionId: 'other-version' }));
   await assertFails(updateDoc(participationRef, { completedStationIds: ['station-1'], progressPercentage: 100 }));
+});
+
+test('participant reads own responses, teacher may inspect, and unrelated participant is denied', async () => {
+  const ownDb = environment.authenticatedContext('student-a').firestore();
+  const teacherDb = environment.authenticatedContext('teacher-a').firestore();
+  const otherDb = environment.authenticatedContext('creator-a').firestore();
+  const path = ['routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-1'];
+  await assertSucceeds(getDoc(doc(ownDb, ...path)));
+  await assertSucceeds(getDoc(doc(teacherDb, ...path)));
+  await assertFails(getDoc(doc(otherDb, ...path)));
+});
+
+test('ordinary clients cannot forge response evaluation or write score', async () => {
+  const db = environment.authenticatedContext('student-a').firestore();
+  const responseRef = doc(db, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-1');
+  await assertFails(updateDoc(responseRef, { pointsAwarded: 999, isCorrect: true }));
+  await assertFails(setDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'forged'), {
+    id: 'forged', pointsAwarded: 999, isCorrect: true,
+  }));
+  await assertFails(updateDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a'), { score: 999 }));
 });

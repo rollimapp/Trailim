@@ -25,22 +25,22 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
     existingResponse ? { isCorrect: existingResponse.isCorrect, feedback: existingResponse.feedback } : null
   );
 
-  const handleSubmitChoice = (optionId: string) => {
+  const handleSubmitChoice = async (optionId: string) => {
     setSelectedOption(optionId);
-    const result = submitTaskAnswer(task.id, optionId);
+    const result = await submitTaskAnswer(task.id, optionId);
     setFeedbackResult(result);
   };
 
-  const handleSubmitTextOrCode = () => {
+  const handleSubmitTextOrCode = async () => {
     if (!textInput.trim()) return;
-    const result = submitTaskAnswer(task.id, textInput, evidenceUrl);
+    const result = await submitTaskAnswer(task.id, textInput, evidenceUrl);
     setFeedbackResult(result);
   };
 
-  const handleEvidenceUpload = (url: string) => {
+  const handleEvidenceUpload = async (url: string) => {
     setEvidenceUrl(url);
     if (url) {
-      const result = submitTaskAnswer(task.id, 'photo_submitted', url);
+      const result = await submitTaskAnswer(task.id, 'photo_submitted', url);
       setFeedbackResult(result);
     }
   };

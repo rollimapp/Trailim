@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { mockUsers } from '../data/mockData';
+import { getFirebaseServices, isFirebaseConfigured } from '../services/firebase/firebaseClient';
+import { httpsCallable } from 'firebase/functions';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { getCallableFunctions } from '../services/firebase/versionReviewGateway';
 
 interface AuthContextType {
   currentUser: User;
@@ -24,6 +28,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
+
+  const syncWithFirebase = async (userId: string) => {
+    if (!isFirebaseConfigured()) return;
+    try {
+      const services = getFirebaseServices();
+      if (userId === 'guest') {
+        await signOut(services.auth);
+        return;
+      }
+      const functions = getCallableFunctions();
+      const seedCallable = httpsCallable(functions, 'devSeedDatabase');
+      await seedCallable();
+
+      const tokenCallable = httpsCallable(functions, 'getDevCustomToken');
+      const tokenResult = await tokenCallable({ uid: userId });
+      const token = (tokenResult.data as any).token;
+
+      await signInWithCustomToken(services.auth, token);
+      console.log(`Successfully authenticated in Firebase Auth as: ${userId}`);
+    } catch (error) {
+      console.error('Firebase Auth sync failed:', error);
+    }
+  };
+
+  useEffect(() => {
+    syncWithFirebase('student-1');
+  }, []);
 
   const switchUser = (userId: 'student-1' | 'teacher-1' | 'approver-1' | 'guest') => {
     if (userId === 'guest') {
@@ -52,7 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setCurrentUser(mockUsers[userId] || mockUsers['student-1']);
     }
+    syncWithFirebase(userId);
   };
+
 
   const toggleSaveRoute = (routeId: string) => {
     setSavedRouteIds(prev => 

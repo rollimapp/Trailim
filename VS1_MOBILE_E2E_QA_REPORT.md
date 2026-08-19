@@ -168,5 +168,16 @@ Inspected Firestore collections in the emulator UI:
 - **Physical Sensor & Camera Testing**: Not tested on real physical camera hardware, mobile browser GPS sensors, or QR code camera captures (tested via simulated emulator fallbacks).
 - **Challenge Session E2E**: Not manually tested in browser UI E2E (backend integration and scoring calculations only).
 - **Browser Back**: Not manually tested in browser UI (inspected only).
-- **Blockers**: None. The VS1 E2E flow is fully integrated and functional.
+
+### Blockers
+No backend/data-integrity blockers identified in the tested VS1 scope.
+
+### Remaining validation before pilot
+- real browser manual E2E of creator/review/session/participant flow
+- browser Back behavior
+- Challenge session browser E2E
+- physical mobile camera / QR / GPS field test
+
+### Current verdict
+VS1 backend integration is verified and the frontend wiring is code-inspected, but full real-device/browser pilot validation is not yet complete.
 

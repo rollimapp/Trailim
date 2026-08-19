@@ -1,0 +1,20 @@
+{
+  "name": "trailim-functions",
+  "private": true,
+  "type": "module",
+  "main": "lib/functions/src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/versionReviewService.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}

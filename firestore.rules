@@ -261,6 +261,28 @@ service cloud.firestore {
           allow delete: if canWriteDraft(routeId, draftId);
         }
       }
+
+      match /versions/{routeVersionId} {
+        allow read: if canManageRoute(get(routePath(routeId)).data);
+        allow write: if false;
+
+        match /stations/{stationId} {
+          allow read: if canManageRoute(get(routePath(routeId)).data);
+          allow write: if false;
+        }
+
+        match /answerKeys/{protectedRecordId} {
+          allow read, write: if false;
+        }
+      }
+    }
+
+    match /reviews/{reviewId} {
+      allow get: if isTeacher(resource.data.organizationId)
+        || canManageRoute(get(routePath(resource.data.routeId)).data);
+      allow list: if isTeacher(resource.data.organizationId)
+        || canManageRoute(get(routePath(resource.data.routeId)).data);
+      allow write: if false;
     }
   }
 }

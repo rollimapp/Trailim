@@ -519,3 +519,52 @@ test('reveal policy scoring - retry and scoring behavior for hidden and immediat
   assert.equal(replayImm1.pointsAwarded, 10);
   assert.equal(replayImm1.score, 8); // overall score remains 8 (since imm2 set it to 8)
 });
+
+test('retry limits - strict constraints on attemptLimit when retry is allowed', async () => {
+  const sessionId = await joinedSession();
+
+  // Temporary alter answerKey to test validation
+  // 1. allowRetry = true with no attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: null });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-1'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // 2. allowRetry = true with zero attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: 0 });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-2'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // 3. allowRetry = true with negative attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: -5 });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-3'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // Restore valid setting
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: 3 });
+
+  // 4. All valid attempts remain replay-idempotent
+  const r1 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-valid-1');
+  const r2 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-2');
+  assert.equal(r2.attemptCount, 2);
+  assert.equal(r2.score, 8);
+
+  const replayR1 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-valid-1');
+  assert.equal(replayR1.attemptCount, 1);
+  assert.equal(replayR1.score, 8); // score remains r2's current score
+
+  // 5. Old attempt replay after final allowed attempt does not change attemptCount or score
+  const r3 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-3');
+  assert.equal(r3.attemptCount, 3);
+  assert.equal(r3.score, 6);
+
+  // Replay r2 after r3 completes
+  const replayR2 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-2');
+  assert.equal(replayR2.attemptCount, 2);
+  assert.equal(replayR2.score, 6); // attemptCount is 2, score is still 6
+});

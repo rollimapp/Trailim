@@ -340,6 +340,12 @@ export class SessionParticipationService {
         }
       }
 
+      if (key.allowRetry === true) {
+        if (!Number.isInteger(key.attemptLimit) || key.attemptLimit <= 0) {
+          throw new WorkflowError('failed-precondition', 'Retry requires a finite positive attemptLimit');
+        }
+      }
+
       const attemptCount = Number(previous?.attemptCount || 0) + 1;
       if (previousSnapshot.exists && key.allowRetry !== true) {
         throw new WorkflowError('failed-precondition', 'Retry is not allowed');
@@ -418,12 +424,6 @@ export class SessionParticipationService {
           ...(isCorrect === undefined ? {} : { isCorrect })
         }
       };
-
-      const maxHistory = Math.max(100, (Number(key.attemptLimit) || 0) * 2);
-      const keys = Object.keys(nextProcessed);
-      if (keys.length > maxHistory) {
-        delete nextProcessed[keys[0]];
-      }
 
       const privateEvaluation = {
         id: 'record',

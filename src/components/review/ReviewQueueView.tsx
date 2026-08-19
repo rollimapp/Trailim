@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ReviewItem, Route } from '../../types';
 import { dataService } from '../../services/dataService';
+import { vs1WorkflowRepository } from '../../services/vs1WorkflowRepository';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldCheck, CheckCircle2, AlertCircle, Eye, MessageSquare, Clock, Send } from 'lucide-react';
 
@@ -10,14 +11,51 @@ interface ReviewQueueViewProps {
 
 export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute }) => {
   const { currentUser } = useAuth();
-  const [queue, setQueue] = useState<ReviewItem[]>(dataService.getReviewQueue());
+  const getQueue = (): ReviewItem[] => {
+    const versioned = vs1WorkflowRepository.getPendingReviews().map(review => {
+      const version = vs1WorkflowRepository.getVersion(review.routeVersionId)!;
+      const route = dataService.getRouteById(review.routeId);
+      return {
+        id: review.id,
+        routeId: review.routeId,
+        routeTitle: version.content.title,
+        creatorId: review.submittedByUserId,
+        creatorName: route?.creatorDisplayName || review.submittedByUserId,
+        creatorRole: route?.creatorRole || 'student',
+        schoolName: route?.schoolName,
+        subject: version.content.subject,
+        stationCount: version.stationIds.length,
+        submittedAt: review.submittedAt,
+        status: 'submitted' as const,
+      };
+    });
+    const versionedIds = new Set(versioned.map(review => review.id));
+    const legacy = dataService.getReviewQueue().filter(review =>
+      !versionedIds.has(review.id) && (review.status === 'submitted' || review.status === 'in_review')
+    );
+    return [...versioned, ...legacy];
+  };
+
+  const [queue, setQueue] = useState<ReviewItem[]>(getQueue());
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [feedback, setFeedback] = useState('');
 
   const handleAction = (action: 'approve' | 'request_changes' | 'reject') => {
     if (!selectedReview) return;
-    dataService.processReview(selectedReview.id, action, feedback, currentUser.name);
-    setQueue(dataService.getReviewQueue());
+    const versionedReview = vs1WorkflowRepository.getReview(selectedReview.id);
+    if (versionedReview && action !== 'reject') {
+      if (action === 'request_changes') {
+        vs1WorkflowRepository.requestChanges(selectedReview.id, currentUser.id, feedback);
+        dataService.updateRouteStatus(selectedReview.routeId, 'changes_requested');
+      } else {
+        vs1WorkflowRepository.approveVersion(versionedReview.routeVersionId, currentUser.id, feedback);
+        const legacyRoute = dataService.updateRouteStatus(selectedReview.routeId, 'published_to_class', currentUser.id);
+        if (legacyRoute) dataService.saveRoute({ ...legacyRoute, teacherApproved: true });
+      }
+    } else {
+      dataService.processReview(selectedReview.id, action, feedback, currentUser.name);
+    }
+    setQueue(getQueue());
     setSelectedReview(null);
     setFeedback('');
     alert(`Review updated: ${action.replace('_', ' ').toUpperCase()}`);

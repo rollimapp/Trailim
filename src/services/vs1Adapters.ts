@@ -1,5 +1,6 @@
 import type {
   ParticipantProgress,
+  ReviewItem,
   Route as LegacyRoute,
   Station as LegacyStation,
   Task as LegacyTask,
@@ -324,3 +325,92 @@ export const toParticipation = (
   score: progress.score,
   updatedAt,
 });
+
+export const mergeVersionedAndLegacyReviews = (
+  versioned: ReviewItem[],
+  legacy: ReviewItem[],
+): ReviewItem[] => {
+  const versionedRouteIds = new Set(versioned.map(review => review.routeId));
+  return [...versioned, ...legacy.filter(review => !versionedRouteIds.has(review.routeId))];
+};
+
+export const toLegacyVersionPreview = (
+  legacyRoute: LegacyRoute,
+  snapshot: Omit<RouteVersionSnapshotBundle, 'answerKeys'>,
+): { route: LegacyRoute; stations: LegacyStation[] } => {
+  const previewRouteId = `version-preview-${snapshot.version.id}`;
+  const content = snapshot.version.content;
+  const stations: LegacyStation[] = snapshot.stations.map(station => ({
+    id: station.id,
+    routeId: previewRouteId,
+    title: station.title,
+    shortLabel: station.shortLabel,
+    description: station.description,
+    instructions: station.instructions,
+    position: station.position,
+    stationType: station.stationType,
+    contentBlocks: structuredClone(station.contentBlocks),
+    trigger: structuredClone(station.trigger),
+    tasks: station.tasks.map(task => ({
+      id: task.id,
+      type: task.type,
+      prompt: task.prompt,
+      description: task.description,
+      options: task.options?.map(option => ({ ...option })),
+      points: task.displayPoints || 0,
+      required: task.required,
+      mediaAttachmentUrl: task.mediaAttachmentUrl,
+      hint: task.hint,
+      answerRevealPolicy: task.answerRevealPolicy,
+    })),
+    possiblePoints: station.tasks.reduce((total, task) => total + (task.displayPoints || 0), 0),
+    estimatedTimeMinutes: station.estimatedTimeMinutes,
+    required: station.required,
+    allowSkip: station.allowSkip,
+    allowRevisit: station.allowRevisit,
+    safetyNote: station.safetyNote,
+    accessibilityAlternative: station.accessibilityAlternative,
+    locationData: station.locationData ? structuredClone(station.locationData) : undefined,
+    createdAt: snapshot.version.submittedAt,
+    updatedAt: snapshot.version.submittedAt,
+  }));
+
+  return {
+    route: {
+      ...legacyRoute,
+      id: previewRouteId,
+      title: content.title,
+      subtitle: undefined,
+      shortDescription: content.shortDescription,
+      fullDescription: content.fullDescription,
+      coverImageUrl: content.coverImageUrl || '',
+      trailerVideoUrl: undefined,
+      supportedModes: [...content.supportedModes],
+      defaultMode: content.defaultMode,
+      subject: content.subject,
+      topics: [...content.topics],
+      tags: [],
+      learningObjectives: [...content.learningObjectives],
+      skills: [],
+      ageGroups: [...content.ageGroups],
+      recommendedGradeLevels: [],
+      language: content.language,
+      estimatedDurationMinutes: content.estimatedDurationMinutes,
+      estimatedDistanceKm: content.estimatedDistanceKm,
+      difficulty: content.difficulty,
+      accessibilityInformation: content.accessibilityInformation,
+      safetyInstructions: content.safetyInstructions,
+      requiredEquipment: [],
+      participantInstructions: content.participantInstructions,
+      startLocation: structuredClone(content.startLocation),
+      stationOrderMode: content.stationOrderMode,
+      stationIds: [...snapshot.version.stationIds],
+      totalPossiblePoints: stations.reduce((total, station) => total + station.possiblePoints, 0),
+      visibility: snapshot.version.visibility,
+      publishingStatus: snapshot.version.status === 'approved' ? 'teacher_approved' : 'in_review',
+      version: snapshot.version.versionNumber,
+      updatedAt: snapshot.version.submittedAt,
+    },
+    stations,
+  };
+};

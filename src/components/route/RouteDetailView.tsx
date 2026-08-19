@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Route, ExperienceMode } from '../../types';
+import { Route, Station, ExperienceMode } from '../../types';
 import { 
   ArrowLeft, Clock, MapPin, Award, Star, ShieldAlert, CheckCircle2, 
   Users, Bookmark, Play, Share2, Sparkles, Map, BookOpen, ShieldCheck, Heart, GraduationCap, MessageSquareQuote
@@ -11,12 +11,14 @@ import { MapPlaceholder } from '../common/MapPlaceholder';
 
 interface RouteDetailViewProps {
   route: Route;
+  stationsOverride?: Station[];
   onBack: () => void;
   onStartRoute: (mode: ExperienceMode) => void;
 }
 
 export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
   route,
+  stationsOverride,
   onBack,
   onStartRoute
 }) => {
@@ -27,7 +29,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
   const [likesCount, setLikesCount] = useState(route.likesCount || 0);
   const [userHasLiked, setUserHasLiked] = useState(route.userHasLiked || false);
 
-  const stations = dataService.getStationsForRoute(route.id);
+  const stations = stationsOverride || dataService.getStationsForRoute(route.id);
   const isSaved = savedRouteIds.includes(route.id) || route.userHasSaved;
 
   const handleToggleLike = () => {

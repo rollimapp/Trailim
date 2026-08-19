@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ReviewItem, Route } from '../../types';
+import { ReviewItem, Route, Station } from '../../types';
 import { dataService } from '../../services/dataService';
+import { mergeVersionedAndLegacyReviews, toLegacyVersionPreview } from '../../services/vs1Adapters';
 import { vs1WorkflowRepository } from '../../services/vs1WorkflowRepository';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldCheck, CheckCircle2, AlertCircle, Eye, MessageSquare, Clock, Send } from 'lucide-react';
 
 interface ReviewQueueViewProps {
-  onPreviewRoute: (route: Route) => void;
+  onPreviewRoute: (route: Route, stations?: Station[]) => void;
 }
 
 export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute }) => {
@@ -29,11 +30,10 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute
         status: 'submitted' as const,
       };
     });
-    const versionedIds = new Set(versioned.map(review => review.id));
     const legacy = dataService.getReviewQueue().filter(review =>
-      !versionedIds.has(review.id) && (review.status === 'submitted' || review.status === 'in_review')
+      review.status === 'submitted' || review.status === 'in_review'
     );
-    return [...versioned, ...legacy];
+    return mergeVersionedAndLegacyReviews(versioned, legacy);
   };
 
   const [queue, setQueue] = useState<ReviewItem[]>(getQueue());
@@ -97,6 +97,13 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute
           <div className="space-y-3">
             {queue.map(item => {
               const route = dataService.getRouteById(item.routeId);
+              const versionedReview = vs1WorkflowRepository.getReview(item.id);
+              const versionedSnapshot = versionedReview
+                ? vs1WorkflowRepository.getParticipantSnapshot(versionedReview.routeVersionId)
+                : null;
+              const preview = route && versionedSnapshot
+                ? toLegacyVersionPreview(route, versionedSnapshot)
+                : null;
               return (
                 <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
                   <div className="flex justify-between items-start">
@@ -116,9 +123,11 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute
                   </div>
 
                   <div className="flex gap-2 border-t border-slate-100 pt-3">
-                    {route && (
+                    {route && (!versionedReview || preview) && (
                       <button
-                        onClick={() => onPreviewRoute(route)}
+                        onClick={() => preview
+                          ? onPreviewRoute(preview.route, preview.stations)
+                          : onPreviewRoute(route)}
                         className="py-1.5 px-3 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-slate-200"
                       >
                         <Eye className="w-3.5 h-3.5" /> Preview Trail

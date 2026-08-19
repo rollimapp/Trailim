@@ -322,6 +322,20 @@ service cloud.firestore {
               || isTeacher(get(sessionPath(sessionId)).data.organizationId)
             );
           allow write: if false;
+
+          match /privateEvaluation/record {
+            allow read: if signedIn()
+              && exists(sessionPath(sessionId))
+              && (
+                isTeacher(get(sessionPath(sessionId)).data.organizationId)
+                || (
+                  request.auth.uid == participantUserId
+                  && get(/databases/$(database)/documents/routeSessions/$(sessionId)/participations/$(participantUserId)).data.status == 'completed'
+                  && resource.data.revealPolicy == 'after_route'
+                )
+              );
+            allow write: if false;
+          }
         }
       }
     }

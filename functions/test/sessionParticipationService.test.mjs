@@ -55,6 +55,9 @@ beforeEach(async () => {
         { id: 'retry-task', type: 'multiple_choice', options: [{ id: 'a' }, { id: 'b' }] },
         { id: 'text-case', type: 'open_text' }, { id: 'text-insensitive', type: 'open_text' },
         { id: 'submission-task', type: 'reflection' }, { id: 'manual-task', type: 'open_text' },
+        { id: 'reveal-immediate', type: 'multiple_choice', answerRevealPolicy: 'immediate', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'reveal-after', type: 'multiple_choice', answerRevealPolicy: 'after_route', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'reveal-never', type: 'multiple_choice', answerRevealPolicy: 'never', options: [{ id: 'a' }, { id: 'b' }] },
       ],
     }),
     seed('routes/route-a/versions/version-approved/answerKeys/option-task', {
@@ -80,6 +83,18 @@ beforeEach(async () => {
     seed('routes/route-a/versions/version-approved/answerKeys/manual-task', {
       id: 'manual-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'manual-task',
       validation: { kind: 'manual_review' }, pointsAwarded: 20, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-immediate', {
+      id: 'reveal-immediate', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-immediate',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-after', {
+      id: 'reveal-after', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-after',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-never', {
+      id: 'reveal-never', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-never',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 5, allowRetry: false, penaltyPerAttempt: 0,
     }),
   ]);
 });
@@ -373,4 +388,68 @@ test('idempotency - same submission ID deduplicates concurrent and sequential at
   assert.equal(replayThird.attemptCount, 3);
   assert.equal(replayThird.pointsAwarded, 6);
   assert.equal(replayThird.score, 6);
+});
+
+test('idempotency - survived out-of-order replays', async () => {
+  const sessionId = await joinedSession();
+
+  // Attempt A: submit answer 'b' (incorrect) with idemp-A
+  const resultA = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-A');
+  assert.equal(resultA.attemptCount, 1);
+  assert.equal(resultA.isCorrect, false);
+  assert.equal(resultA.pointsAwarded, 0);
+
+  // Attempt B: submit answer 'a' (correct) with idemp-B
+  const resultB = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-B');
+  assert.equal(resultB.attemptCount, 2);
+  assert.equal(resultB.isCorrect, true);
+  assert.equal(resultB.pointsAwarded, 8); // penalty of 2 applied
+
+  // Replay Attempt A: submit answer 'b' (incorrect) with idemp-A
+  // Even though it is submitted after B, it must return cached A evaluation without incrementing attemptCount or changing score
+  const replayA = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-A');
+  assert.equal(replayA.attemptCount, 1);
+  assert.equal(replayA.isCorrect, false);
+  assert.equal(replayA.pointsAwarded, 0);
+  assert.equal(replayA.score, 8); // score remains B's score
+});
+
+test('reveal policy - immediate, after_route, and never disclosures', async () => {
+  const sessionId = await joinedSession();
+  const responseDocumentId = (stationId, taskId) =>
+    Buffer.from(JSON.stringify([stationId, taskId])).toString('base64url');
+
+  // 1. Submit immediate reveal task response
+  const immRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-immediate', 'a', 'student-a', 'id-imm');
+  assert.equal(immRes.isCorrect, true);
+  assert.equal(immRes.pointsAwarded, 5);
+
+  // Verify fields exist on public document
+  const immDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-immediate')}`).get()).data();
+  assert.equal(immDoc.isCorrect, true);
+  assert.equal(immDoc.pointsAwarded, 5);
+
+  // 2. Submit after_route reveal task response (before participation completion)
+  const aftRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'id-aft');
+  assert.equal(aftRes.isCorrect, undefined); // hidden from client return
+  assert.equal(aftRes.pointsAwarded, undefined); // hidden from client return
+
+  // Verify fields are absent on public response document
+  const aftDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-after')}`).get()).data();
+  assert.equal(aftDoc.isCorrect, undefined);
+  assert.equal(aftDoc.pointsAwarded, undefined);
+
+  // But verify they are stored on private evaluation record
+  const aftPriv = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-after')}/privateEvaluation/record`).get()).data();
+  assert.equal(aftPriv.isCorrect, true);
+  assert.equal(aftPriv.pointsAwarded, 5);
+
+  // 3. Submit never reveal task response
+  const nevRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'id-nev');
+  assert.equal(nevRes.isCorrect, undefined);
+  assert.equal(nevRes.pointsAwarded, undefined);
+
+  const nevDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-never')}`).get()).data();
+  assert.equal(nevDoc.isCorrect, undefined);
+  assert.equal(nevDoc.pointsAwarded, undefined);
 });

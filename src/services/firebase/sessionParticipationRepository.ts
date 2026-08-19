@@ -86,7 +86,35 @@ export class FirestoreSessionParticipationRepository {
       collection(firestore, 'routeSessions', sessionId, 'participations', participantUserId, 'responses'),
       orderBy('updatedAt'),
     ));
-    return snapshot.docs.map(item => responseFromSnapshot(sessionId, participationId, item));
+    const list = snapshot.docs.map(item => responseFromSnapshot(sessionId, participationId, item));
+    await Promise.all(snapshot.docs.map(async (item, index) => {
+      const data = item.data();
+      if (data.revealPolicy && data.revealPolicy !== 'immediate') {
+        const response = list[index];
+        try {
+          const privateSnap = await getDoc(doc(
+            firestore,
+            'routeSessions',
+            sessionId,
+            'participations',
+            participantUserId,
+            'responses',
+            response.id,
+            'privateEvaluation',
+            'record'
+          ));
+          if (privateSnap.exists()) {
+            const privateData = privateSnap.data();
+            response.isCorrect = privateData.isCorrect;
+            response.pointsAwarded = privateData.pointsAwarded;
+            response.feedback = privateData.feedback;
+          }
+        } catch (e) {
+          // Ignored: read is restricted by security rules prior to completion
+        }
+      }
+    }));
+    return list;
   }
 
   async findActiveParticipation(routeVersionId: string, participantUserId: string, mode: string): Promise<{ session: Vs1RouteSession; participation: Participation } | null> {

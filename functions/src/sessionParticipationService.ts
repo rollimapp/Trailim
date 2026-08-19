@@ -295,6 +295,8 @@ export class SessionParticipationService {
       }
 
       const responseRef = participationRef.collection('responses').doc(responseDocumentId(stationId, taskId));
+      const privateRef = responseRef.collection('privateEvaluation').doc('record');
+
       const previousSnapshot = await transaction.get(responseRef);
       const previous = previousSnapshot.data();
       if (previousSnapshot.exists && (!previous || previous.id !== responseRef.id ||
@@ -304,15 +306,38 @@ export class SessionParticipationService {
         throw new WorkflowError('failed-precondition', 'Existing TaskResponse identity is incoherent');
       }
 
-      if (submissionId && typeof submissionId === 'string' && previousSnapshot.exists && previous?.lastSubmissionId === submissionId) {
-        return {
-          responseId: responseRef.id,
-          evaluationStatus: previous.evaluationStatus,
-          isCorrect: previous.isCorrect,
-          pointsAwarded: previous.pointsAwarded,
-          attemptCount: previous.attemptCount,
-          score: participation.score,
-        };
+      const privateSnapshot = await transaction.get(privateRef);
+      const privateData = privateSnapshot.data();
+
+      if (submissionId && typeof submissionId === 'string') {
+        let cached = null;
+        if (privateData && privateData.processedSubmissions && typeof privateData.processedSubmissions === 'object') {
+          cached = privateData.processedSubmissions[submissionId];
+        }
+        if (!cached && previous?.lastSubmissionId === submissionId) {
+          cached = {
+            evaluationStatus: previous.evaluationStatus,
+            isCorrect: previous.isCorrect,
+            pointsAwarded: previous.pointsAwarded,
+            attemptCount: previous.attemptCount,
+            feedback: previous.feedback,
+          };
+        }
+        if (cached) {
+          const revealPolicy = task.answerRevealPolicy || 'immediate';
+          const showCorrectness = revealPolicy === 'immediate';
+          return {
+            responseId: responseRef.id,
+            evaluationStatus: cached.evaluationStatus,
+            attemptCount: cached.attemptCount,
+            score: participation.score,
+            ...(showCorrectness ? {
+              isCorrect: cached.isCorrect,
+              pointsAwarded: cached.pointsAwarded,
+              feedback: cached.feedback,
+            } : {})
+          };
+        }
       }
 
       const attemptCount = Number(previous?.attemptCount || 0) + 1;
@@ -362,17 +387,72 @@ export class SessionParticipationService {
       const currentScore = Math.max(0, Number(participation.score) || 0);
       const nextScore = Math.max(0, currentScore - previousAward + awarded);
       const now = Timestamp.now();
-      const response = {
+
+      const revealPolicy = task.answerRevealPolicy || 'immediate';
+      const showCorrectness = revealPolicy === 'immediate';
+      const feedback = isCorrect === undefined ? 'Pending teacher review' : (isCorrect ? 'Correct!' : 'Incorrect answer');
+
+      const publicResponse = {
         id: responseRef.id, participationId: participation.id, sessionId,
         routeId: session.routeId, routeVersionId: session.routeVersionId, stationId, taskId,
         answer: normalizedAnswer, submittedAt: previous?.submittedAt || now, updatedAt: now,
-        evaluationStatus, ...(isCorrect === undefined ? {} : { isCorrect }), pointsAwarded: awarded, attemptCount,
+        evaluationStatus, attemptCount,
+        revealPolicy,
         lastSubmissionId: submissionId || null,
+        ...(showCorrectness ? {
+          pointsAwarded: awarded,
+          feedback,
+          ...(isCorrect === undefined ? {} : { isCorrect })
+        } : {})
       };
-      if (previousSnapshot.exists) transaction.set(responseRef, response);
-      else transaction.create(responseRef, response);
+
+      const oldProcessed = privateData?.processedSubmissions || {};
+      const nextProcessed = {
+        ...oldProcessed,
+        [submissionId]: {
+          attemptCount,
+          evaluationStatus,
+          pointsAwarded: awarded,
+          feedback,
+          score: nextScore,
+          ...(isCorrect === undefined ? {} : { isCorrect })
+        }
+      };
+
+      const keys = Object.keys(nextProcessed);
+      if (keys.length > 10) {
+        delete nextProcessed[keys[0]];
+      }
+
+      const privateEvaluation = {
+        id: 'record',
+        revealPolicy,
+        evaluationStatus,
+        pointsAwarded: awarded,
+        feedback,
+        processedSubmissions: nextProcessed,
+        updatedAt: now,
+        ...(isCorrect === undefined ? {} : { isCorrect })
+      };
+
+      if (previousSnapshot.exists) transaction.set(responseRef, publicResponse);
+      else transaction.create(responseRef, publicResponse);
+
+      transaction.set(privateRef, privateEvaluation);
+
       transaction.update(participationRef, { score: nextScore, updatedAt: now });
-      return { responseId: responseRef.id, evaluationStatus, isCorrect, pointsAwarded: awarded, attemptCount, score: nextScore };
+
+      return {
+        responseId: responseRef.id,
+        evaluationStatus,
+        attemptCount,
+        score: nextScore,
+        ...(showCorrectness ? {
+          isCorrect,
+          pointsAwarded: awarded,
+          feedback
+        } : {})
+      };
     });
   }
 }

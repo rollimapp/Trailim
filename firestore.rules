@@ -31,6 +31,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/teams/$(teamId)/members/$(userId);
     }
 
+    function routePath(routeId) {
+      return /databases/$(database)/documents/routes/$(routeId);
+    }
+
+    function draftPath(routeId, draftId) {
+      return /databases/$(database)/documents/routes/$(routeId)/drafts/$(draftId);
+    }
+
     function isTeamManager(teamId) {
       return signedIn()
         && exists(teamMemberPath(teamId, request.auth.uid))
@@ -85,6 +93,83 @@ service cloud.firestore {
         && request.resource.data.joinedAt is timestamp;
     }
 
+    function canManageRoute(route) {
+      return isActiveMember(route.organizationId)
+        && exists(teamPath(route.ownerTeamId))
+        && get(teamPath(route.ownerTeamId)).data.organizationId == route.organizationId
+        && canManageTeam(route.ownerTeamId, route.organizationId);
+    }
+
+    function validRoute(routeId) {
+      return request.resource.data.keys().hasAll([
+          'id', 'organizationId', 'ownerTeamId', 'createdByUserId', 'title', 'status',
+          'currentDraftId', 'visibility', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'organizationId', 'ownerTeamId', 'createdByUserId', 'title', 'status',
+          'currentDraftId', 'latestSubmittedVersionId', 'approvedVersionId', 'visibility',
+          'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.id == routeId
+        && request.resource.data.organizationId is string
+        && request.resource.data.ownerTeamId is string
+        && request.resource.data.createdByUserId is string
+        && request.resource.data.title is string
+        && request.resource.data.currentDraftId is string
+        && request.resource.data.currentDraftId.size() > 0
+        && request.resource.data.status in ['draft', 'in_review', 'changes_requested', 'approved', 'archived']
+        && request.resource.data.visibility in ['private', 'class', 'school']
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function validDraft(routeId, draftId, route) {
+      return request.resource.data.keys().hasAll([
+          'id', 'routeId', 'organizationId', 'ownerTeamId', 'content',
+          'updatedByUserId', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'routeId', 'organizationId', 'ownerTeamId', 'basedOnVersionId',
+          'content', 'updatedByUserId', 'updatedAt'
+        ])
+        && request.resource.data.id == draftId
+        && request.resource.data.routeId == routeId
+        && request.resource.data.organizationId == route.organizationId
+        && request.resource.data.ownerTeamId == route.ownerTeamId
+        && request.resource.data.updatedByUserId == request.auth.uid
+        && request.resource.data.content is map
+        && request.resource.data.updatedAt is timestamp
+        && route.currentDraftId == draftId;
+    }
+
+    function validDraftStation(routeId, draftId, stationId) {
+      return request.resource.data.keys().hasAll([
+          'id', 'routeId', 'draftId', 'title', 'shortLabel', 'description', 'position',
+          'stationType', 'contentBlocks', 'trigger', 'tasks', 'estimatedTimeMinutes',
+          'required', 'allowSkip', 'allowRevisit'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'routeId', 'draftId', 'title', 'shortLabel', 'description', 'instructions',
+          'position', 'stationType', 'contentBlocks', 'trigger', 'tasks',
+          'estimatedTimeMinutes', 'required', 'allowSkip', 'allowRevisit', 'safetyNote',
+          'accessibilityAlternative', 'locationData'
+        ])
+        && request.resource.data.id == stationId
+        && request.resource.data.routeId == routeId
+        && request.resource.data.draftId == draftId
+        && request.resource.data.title is string
+        && request.resource.data.position is int
+        && request.resource.data.contentBlocks is list
+        && request.resource.data.trigger is map
+        && request.resource.data.tasks is list;
+    }
+
+    function canWriteDraft(routeId, draftId) {
+      let route = getAfter(routePath(routeId)).data;
+      return canManageRoute(route)
+        && route.currentDraftId == draftId;
+    }
+
     match /organizations/{organizationId} {
       allow read: if isActiveMember(organizationId);
       allow write: if false;
@@ -121,6 +206,60 @@ service cloud.firestore {
           && request.resource.data.joinedAt == resource.data.joinedAt
           && canManageTeam(teamId, get(teamPath(teamId)).data.organizationId);
         allow delete: if canManageTeam(teamId, get(teamPath(teamId)).data.organizationId);
+      }
+    }
+
+    match /routes/{routeId} {
+      allow read: if isActiveMember(resource.data.organizationId);
+      allow create: if validRoute(routeId)
+        && request.resource.data.status == 'draft'
+        && !('latestSubmittedVersionId' in request.resource.data)
+        && !('approvedVersionId' in request.resource.data)
+        && request.resource.data.createdByUserId == request.auth.uid
+        && exists(teamPath(request.resource.data.ownerTeamId))
+        && get(teamPath(request.resource.data.ownerTeamId)).data.organizationId
+          == request.resource.data.organizationId
+        && existsAfter(draftPath(routeId, request.resource.data.currentDraftId))
+        && getAfter(draftPath(routeId, request.resource.data.currentDraftId)).data.id
+          == request.resource.data.currentDraftId
+        && getAfter(draftPath(routeId, request.resource.data.currentDraftId)).data.routeId == routeId
+        && canManageTeam(
+          request.resource.data.ownerTeamId,
+          request.resource.data.organizationId
+        );
+      allow update: if validRoute(routeId)
+        && canManageRoute(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt']);
+      allow delete: if false;
+
+      match /drafts/{draftId} {
+        allow read: if canManageRoute(get(routePath(routeId)).data)
+          && get(routePath(routeId)).data.currentDraftId == draftId;
+        allow create: if validDraft(routeId, draftId, getAfter(routePath(routeId)).data)
+          && !('basedOnVersionId' in request.resource.data)
+          && canWriteDraft(routeId, draftId);
+        allow update: if validDraft(routeId, draftId, getAfter(routePath(routeId)).data)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.routeId == resource.data.routeId
+          && request.resource.data.organizationId == resource.data.organizationId
+          && request.resource.data.ownerTeamId == resource.data.ownerTeamId
+          && request.resource.data.get('basedOnVersionId', null)
+            == resource.data.get('basedOnVersionId', null)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'content', 'updatedByUserId', 'updatedAt'
+          ])
+          && canWriteDraft(routeId, draftId);
+        allow delete: if false;
+
+        match /stations/{stationId} {
+          allow read: if canManageRoute(get(routePath(routeId)).data)
+            && get(routePath(routeId)).data.currentDraftId == draftId;
+          allow create, update: if validDraftStation(routeId, draftId, stationId)
+            && existsAfter(draftPath(routeId, draftId))
+            && getAfter(draftPath(routeId, draftId)).data.routeId == routeId
+            && canWriteDraft(routeId, draftId);
+          allow delete: if canWriteDraft(routeId, draftId);
+        }
       }
     }
   }

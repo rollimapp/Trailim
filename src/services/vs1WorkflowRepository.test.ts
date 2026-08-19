@@ -147,6 +147,22 @@ test('each review is bound to the exact submitted version', () => {
   assert.equal(harness.repository.getReview(submission.review.id)!.routeVersionId, submission.snapshot.version.id);
 });
 
+test('a route already in review cannot create a second pending submission', () => {
+  const harness = createHarness();
+  const first = harness.repository.submitDraft(
+    harness.route, harness.draft, harness.legacyStations, 'student-1', 'class',
+  );
+
+  assert.throws(
+    () => harness.repository.submitDraft(
+      harness.route, harness.draft, harness.legacyStations, 'student-1', 'class',
+    ),
+    /not in draft status/,
+  );
+  assert.equal(harness.repository.getRoute(harness.route.id)!.latestSubmittedVersionId, first.snapshot.version.id);
+  assert.equal(harness.repository.getReview(first.review.id)!.status, 'pending');
+});
+
 test('approval targets the latest pending version and updates route summary', () => {
   const harness = createHarness();
   const first = harness.repository.submitDraft(

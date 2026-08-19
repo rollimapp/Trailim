@@ -121,6 +121,16 @@ export class Vs1SessionRepository {
     const state = this.read();
     const session = state.sessions.find(item => item.id === sessionId);
     if (!session) throw new Error('Cannot update session: session not found');
+    if (session.status === status) return clone(session);
+    const allowedTransitions: Record<Vs1RouteSession['status'], Vs1RouteSession['status'][]> = {
+      open: ['active', 'completed', 'cancelled'],
+      active: ['completed', 'cancelled'],
+      completed: [],
+      cancelled: [],
+    };
+    if (!allowedTransitions[session.status].includes(status)) {
+      throw new Error(`Cannot update session: invalid ${session.status} to ${status} transition`);
+    }
     session.status = status;
     if (status === 'completed' || status === 'cancelled') session.completedAt = this.now();
     this.write(state);
@@ -226,10 +236,7 @@ export class Vs1SessionRepository {
 
   abandonParticipation(participationId: string): Participation {
     const state = this.read();
-    const participation = state.participations.find(item => item.id === participationId);
-    if (!participation || participation.status !== 'active') {
-      throw new Error('Cannot abandon participation: participation is not active');
-    }
+    const participation = this.getWritableParticipation(state, participationId, 'abandon participation');
     participation.status = 'abandoned';
     participation.updatedAt = this.now();
     this.write(state);

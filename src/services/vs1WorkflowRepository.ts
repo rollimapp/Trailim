@@ -132,6 +132,20 @@ export class Vs1WorkflowRepository {
     submittedByUserId: string,
     visibility: 'class' | 'school',
   ): { route: Vs1Route; review: Review; snapshot: RouteVersionSnapshotBundle } {
+    const persistedRoute = this.getRoute(route.id);
+    if (!persistedRoute || persistedRoute.status !== 'draft') {
+      throw new Error('Cannot submit draft: route is not in draft status');
+    }
+    return this.createSubmission(persistedRoute, draft, legacyStations, submittedByUserId, visibility);
+  }
+
+  private createSubmission(
+    route: Vs1Route,
+    draft: RouteDraft,
+    legacyStations: LegacyStation[],
+    submittedByUserId: string,
+    visibility: 'class' | 'school',
+  ): { route: Vs1Route; review: Review; snapshot: RouteVersionSnapshotBundle } {
     if (route.id !== draft.routeId || route.currentDraftId !== draft.id) {
       throw new Error('Cannot submit draft: route identity does not match the draft');
     }
@@ -198,7 +212,7 @@ export class Vs1WorkflowRepository {
       updatedByUserId: submittedByUserId,
       updatedAt: this.now(),
     };
-    return this.submitDraft(route, revisedDraft, legacyStations, submittedByUserId, visibility);
+    return this.createSubmission(route, revisedDraft, legacyStations, submittedByUserId, visibility);
   }
 
   requestChanges(reviewId: string, decidedByUserId: string, decisionNote: string) {

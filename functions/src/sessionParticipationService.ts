@@ -26,12 +26,12 @@ const requireRouteAuthority = async (
   userId: string,
 ) => {
   const membership = await getMembership(transaction, firestore, route.organizationId, userId);
-  if (membership.role === 'teacher') return;
   const teamSnapshot = await transaction.get(firestore.doc(`teams/${route.ownerTeamId}`));
   const team = teamSnapshot.data();
   if (!teamSnapshot.exists || team?.organizationId !== route.organizationId) {
     throw new WorkflowError('failed-precondition', 'Route owner team does not match the organization');
   }
+  if (membership.role === 'teacher') return;
   if (team?.createdByUserId === userId) return;
   const memberSnapshot = await transaction.get(firestore.doc(`teams/${route.ownerTeamId}/members/${userId}`));
   const member = memberSnapshot.data();
@@ -168,7 +168,7 @@ export class SessionParticipationService {
   async updateParticipationProgress(sessionId: string, progress: ParticipationProgressInput, userId: string) {
     requireString(sessionId, 'sessionId');
     if (!progress || !Array.isArray(progress.completedStationIds) || progress.completedStationIds.some(id => typeof id !== 'string') ||
-      typeof progress.progressPercentage !== 'number' || progress.progressPercentage < 0 || progress.progressPercentage > 100) {
+      typeof progress.progressPercentage !== 'number') {
       throw new WorkflowError('invalid-argument', 'Progress is invalid');
     }
     const firestore = this.firestore;
@@ -179,14 +179,38 @@ export class SessionParticipationService {
       const participationSnapshot = await transaction.get(participationRef);
       const session = sessionSnapshot.data();
       const participation = participationSnapshot.data();
-      if (!sessionSnapshot.exists || !writableSession(session)) throw new WorkflowError('failed-precondition', 'Parent session is terminal');
+      if (!sessionSnapshot.exists || !session || !writableSession(session)) throw new WorkflowError('failed-precondition', 'Parent session is terminal');
       if (!participationSnapshot.exists || participation?.participantUserId !== userId || participation.status !== 'active') {
         throw new WorkflowError('permission-denied', 'Active owned participation is required');
       }
+      const versionSnapshot = await transaction.get(
+        firestore.doc(`routes/${session.routeId}/versions/${session.routeVersionId}`),
+      );
+      const version = versionSnapshot.data();
+      if (!versionSnapshot.exists || !version || version.id !== session.routeVersionId ||
+        version.routeId !== session.routeId || !Array.isArray(version.stationIds)) {
+        throw new WorkflowError('failed-precondition', 'Session RouteVersion identity is incoherent');
+      }
+      const stationIds = new Set<string>(version.stationIds);
+      if (stationIds.size !== version.stationIds.length) {
+        throw new WorkflowError('failed-precondition', 'RouteVersion station identity is incoherent');
+      }
+      if (new Set(progress.completedStationIds).size !== progress.completedStationIds.length) {
+        throw new WorkflowError('invalid-argument', 'Completed station IDs must be unique');
+      }
+      if (progress.completedStationIds.some(stationId => !stationIds.has(stationId))) {
+        throw new WorkflowError('invalid-argument', 'Completed station does not belong to the RouteVersion');
+      }
+      if (progress.currentStationId !== undefined && !stationIds.has(progress.currentStationId)) {
+        throw new WorkflowError('invalid-argument', 'Current station does not belong to the RouteVersion');
+      }
+      const progressPercentage = stationIds.size === 0
+        ? 0
+        : (progress.completedStationIds.length / stationIds.size) * 100;
       transaction.update(participationRef, {
         currentStationId: progress.currentStationId ?? null,
         completedStationIds: progress.completedStationIds,
-        progressPercentage: progress.progressPercentage,
+        progressPercentage,
         updatedAt: Timestamp.now(),
       });
       return { participationId: participation.id };

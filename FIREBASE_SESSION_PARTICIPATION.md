@@ -29,7 +29,7 @@ Session transitions are forward-only: `open` may become `active`, `completed`, o
 
 Participation documents use the authenticated Firebase UID as the document ID under one session, with canonical domain ID `${sessionId}_${userId}`. Concurrent joins therefore converge on one record. Two sessions for the same user and RouteVersion remain independent, including Learning and Challenge sessions.
 
-Join/resume and progress operations require the parent session to be open or active and the caller to have active membership in the session organization. Trusted progress accepts only current station, completed station IDs, and progress percentage. It cannot set score, completion time, identity fields, or version/session binding. Task 8 will own trusted task evaluation, scoring, and completion.
+Join/resume and progress operations require the parent session to be open or active and the caller to have active membership in the session organization. Trusted progress validates current/completed station IDs against the exact session-bound RouteVersion, rejects duplicates, and derives progress percentage from that version's station set. The compatibility request percentage is ignored. Progress cannot set score, completion time, identity fields, or version/session binding. Task 8 will own trusted task evaluation, scoring, and completion.
 
 ## Reads and Rules
 

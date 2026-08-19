@@ -40,7 +40,7 @@ beforeEach(async () => {
     }),
     seed('routes/route-a/versions/version-approved', {
       id: 'version-approved', routeId: 'route-a', organizationId: 'org-a', ownerTeamId: 'team-a',
-      versionNumber: 1, sourceDraftId: 'draft-a', content: { title: 'Route' }, stationIds: ['station-1'],
+      versionNumber: 1, sourceDraftId: 'draft-a', content: { title: 'Route' }, stationIds: ['station-1', 'station-2'],
       createdByUserId: 'creator-a', submittedAt: now, status: 'approved', visibility: 'class',
     }),
     seed('routes/route-a/versions/version-unapproved', {
@@ -77,6 +77,11 @@ test('session creation rejects unapproved, non-current, and cross-organization a
     routeId: 'route-a', routeVersionId: 'version-unapproved', title: 'Still bad', mode: 'learning',
   }, 'teacher-a'), /current approved version/);
   await assert.rejects(createSession('learning', 'teacher-b'), /Active organization membership/);
+});
+
+test('teacher authority still requires a valid same-organization route owner team', async () => {
+  await firestore.doc('teams/team-a').update({ organizationId: 'org-b' });
+  await assert.rejects(createSession('learning', 'teacher-a'), /owner team does not match/);
 });
 
 test('session lifecycle is forward-only and binding fields remain unchanged', async () => {
@@ -121,6 +126,35 @@ test('same user and version in learning and challenge sessions remain isolated',
   assert.equal(challengeState.progressPercentage, 0);
 });
 
+test('progress rejects unknown and duplicate station identities', async () => {
+  const { sessionId } = await createSession();
+  await service.joinRouteSession(sessionId, 'student-a');
+  await assert.rejects(service.updateParticipationProgress(sessionId, {
+    completedStationIds: ['unknown-station'], progressPercentage: 0,
+  }, 'student-a'), /Completed station does not belong/);
+  await assert.rejects(service.updateParticipationProgress(sessionId, {
+    currentStationId: 'unknown-station', completedStationIds: [], progressPercentage: 0,
+  }, 'student-a'), /Current station does not belong/);
+  await assert.rejects(service.updateParticipationProgress(sessionId, {
+    completedStationIds: ['station-1', 'station-1'], progressPercentage: 100,
+  }, 'student-a'), /must be unique/);
+});
+
+test('progress percentage is derived from the bound version and ignores caller authority', async () => {
+  const { sessionId } = await createSession();
+  await service.joinRouteSession(sessionId, 'student-a');
+  await service.updateParticipationProgress(sessionId, {
+    currentStationId: 'station-1', completedStationIds: [], progressPercentage: 100,
+  }, 'student-a');
+  let participation = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data();
+  assert.equal(participation.progressPercentage, 0);
+  await service.updateParticipationProgress(sessionId, {
+    currentStationId: 'station-2', completedStationIds: ['station-1'], progressPercentage: 0,
+  }, 'student-a');
+  participation = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data();
+  assert.equal(participation.progressPercentage, 50);
+});
+
 test('progress preserves score and identity and is blocked by terminal parent lifecycle', async () => {
   const { sessionId } = await createSession();
   await service.joinRouteSession(sessionId, 'student-a');
@@ -130,6 +164,7 @@ test('progress preserves score and identity and is blocked by terminal parent li
   let participation = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data();
   assert.equal(participation.score, 0);
   assert.equal(participation.routeVersionId, 'version-approved');
+  assert.equal(participation.progressPercentage, 50);
   await service.updateRouteSessionStatus(sessionId, 'completed', 'teacher-a');
   await assert.rejects(service.updateParticipationProgress(sessionId, {
     completedStationIds: ['station-1'], progressPercentage: 100,

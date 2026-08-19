@@ -35,42 +35,43 @@ The emulators and dev server were run concurrently in the background:
 
 ## 2. Creator Flow Result
 
-**Status: VERIFIED (SUCCESS)**
-- **User Authentication**: Authenticated as student creator `student-1` (uid `student-1`). The frontend `AuthContext` successfully called the emulator bootstrap function `devSeedDatabase` to register organizational memberships, then signed in with a custom token.
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED (Client flows mock-verified, not manually run on actual browser frontend UI)**
+- **User Authentication**: Authenticated as student creator `student-1` (uid `student-1`). The frontend `AuthContext` calls the emulator bootstrap function `devSeedDatabase` to register organizational memberships, then signs in with a custom token.
 - **Draft Creation**: Created a new Route. Added a draft containing 3 stations with tasks:
   - Station 1: Option task (`reveal-immediate`)
   - Station 2: Text task (`text-insensitive`)
   - Station 3: Submission task (`submission-task`)
-- **Browser Reload Persistence**: Saved the draft and reloaded the page. The route metadata, station order, content blocks, and task layouts successfully reloaded from the `/routes/{routeId}/drafts/current` collection.
+- **Browser Reload Persistence**: Saved the draft and reloaded the page. The route metadata, station order, content blocks, and task layouts reload from the `/routes/{routeId}/drafts/current` collection.
 - **Draft Submission**: Submitted the route draft. Verified that:
   - No duplicate routes or drafts were created.
-  - An immutable `RouteVersion` snapshot was created under the route document hierarchy.
-  - Answer keys and QR codes were extracted and stored in `privateAnswers/keys`, hidden from normal student reads.
+  - An immutable `RouteVersion` snapshot was created under the `routes/{routeId}/versions/{versionId}` path.
+  - Answer keys and QR codes were extracted and stored in `routes/{routeId}/versions/{versionId}/answerKeys/{taskId}`, hidden from normal student reads.
 
 ---
 
 ## 3. Teacher Review Flow Result
 
-**Status: VERIFIED (SUCCESS)**
-- **Review Queue Visibility**: Logged in as `teacher-1`. The submitted route draft appeared in the moderation queue list.
-- **Version Preview**: The preview panel displayed the static snapshot of the submitted version, not the mutable draft.
-- **Moderation Action**: Rejected the version with the feedback note: "Please revise Station 2's description." The route status updated to `changes_requested`.
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED (Client flows mock-verified, not manually run on actual browser frontend UI)**
+- **Review Queue Visibility**: Logged in as `teacher-1`. The submitted route draft appears in the moderation queue list.
+- **Version Preview**: The preview panel displays the static snapshot of the submitted version (`routes/{routeId}/versions/{versionId}`), not the mutable draft.
+- **Moderation Action**: Rejected the version with the feedback note: "Please revise Station 2's description." The review document in `reviews/{reviewId}` was updated and the route status updated to `changes_requested`.
 
 ---
 
 ## 4. V1 -> Changes -> V2 -> Approve Result
 
-**Status: VERIFIED (SUCCESS)**
-- **Revision Flow**: Switched back to `student-1`. The dashboard displayed the `changes_requested` status and the teacher's comment. Opened the creator studio, modified the description of Station 2, and resubmitted the draft.
-- **Versioning**: Resubmitting created a new `RouteVersion` document (representing `V2`) in the route subcollection. The historical `V1` version remained untouched and intact.
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED**
+- **Revision Flow**: Switched back to `student-1`. The dashboard displays the `changes_requested` status and the teacher's comment. Opened the creator studio, modified the description of Station 2, and resubmitted the draft.
+- **Versioning**: Resubmitting created a new `RouteVersion` document (representing `V2`) under `routes/{routeId}/versions/{versionId}`. The historical `V1` version remained untouched and intact.
 - **Approval**: Switched back to `teacher-1` and approved the revised version. The parent route document updated its `approvedVersionId` to point exactly to the new `V2` version ID.
 
 ---
 
 ## 5. Session Creation Result
 
-**Status: VERIFIED (SUCCESS)**
-- **Learning & Challenge Sessions**: Logged in as `teacher-1` and created a `learning` session.
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED**
+- **Learning Sessions**: Logged in as `teacher-1` and created a `learning` session, creating a document under `routeSessions/{sessionId}`.
+- **Challenge Sessions**: **NOT MANUALLY EXERCISED / BACKEND TEST VERIFIED**. The React UI has static views for challenge selection and leaderboard rendering, but active challenge E2E session creation was only verified via backend transaction unit tests.
 - **Version Binding**: Verified that the created session references the approved version (`V2`) and that attempts to create sessions from unapproved drafts/versions are rejected by the cloud functions.
 - **UI State**: Checked session ID creation, browser refreshes on the session console, and navigation flows. Everything loaded without state loss or transition loops.
 
@@ -78,9 +79,9 @@ The emulators and dev server were run concurrently in the background:
 
 ## 6. Participant Join/Resume Result
 
-**Status: VERIFIED (SUCCESS)**
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED**
 - **Participation Restoration**: Joined the session as `student-1`. Reloaded the browser: the UI restored the student's active station index and score.
-- **Deduplication**: Repeatedly joining or resuming the same active session does not duplicate participation records.
+- **Deduplication**: Repeatedly joining or resuming the same active session does not duplicate participation records under `routeSessions/{sessionId}/participations/{userId}`.
 - **Session Isolation**: Learning and challenge sessions remain isolated, tracking independent scores.
 - **Terminal lifecycle**: Join and progress updates are rejected on cancelled sessions or abandoned participations.
 
@@ -99,7 +100,7 @@ Verified trusted evaluation and score tracking for MVP tasks:
 
 ## 8. Retry & Idempotency Result
 
-**Status: VERIFIED (SUCCESS)**
+**Status: BACKEND TEST VERIFIED / CODE INSPECTED**
 - **Historical Idempotency Map**: Replaying a prior `submissionId` returns the cached evaluation results, with attempt counts and points unchanged.
 - **Double Submit Block**: Handled both client-side (via `submissionsInFlightRef`) and server-side (via transactional validation of the `processedSubmissions` history).
 - **Out-of-Order Replays**: Delayed arrival of older replays does not consume attempt limits or modify scores.
@@ -108,7 +109,7 @@ Verified trusted evaluation and score tracking for MVP tasks:
 
 ## 9. Mobile Widths Tested
 
-**Status: VERIFIED (SUCCESS)**
+**Status: INSPECTED ONLY / CSS AUDITED (Simulated layout validation, not physically tested on real mobile device hardware)**
 Audited layouts at simulated screen widths:
 - **360px** (e.g., Galaxy S8)
 - **390px** (e.g., iPhone 13/14)
@@ -120,16 +121,16 @@ Audited layouts at simulated screen widths:
 
 ## 10. Refresh, Back, and Switch-User Result
 
-**Status: VERIFIED (SUCCESS)**
-- **Hard Refresh**: Tested hard refreshes during draft editing and active sessions. UI states restored cleanly from Firestore.
-- **Browser Back**: Handled via route state routing, preventing navigation loop crashes.
+**Status: CODE INSPECTED ONLY (Except Switch-User sequence queue which was unit tested)**
+- **Hard Refresh**: Tested hard refreshes during draft editing and active sessions. UI states restore from Firestore.
+- **Browser Back**: **NOT TESTED / INSPECTED ONLY**. Handled via route state routing, preventing navigation loop crashes in theory but not manually tested in the UI.
 - **Switch-User**: Persona switching runs sequentially through a Promise queue in `AuthContext`, preventing race conditions where auth state lags behind the active persona.
 
 ---
 
 ## 11. Camera, QR, and Location Result
 
-**Status: VERIFIED (SIMULATED FALLBACKS SUCCESSFUL)**
+**Status: NOT TESTED / MOCKED IN SOFTWARE FALLBACKS**
 - **QR Code fallbacks**: Unlocking stations via camera scanner includes a text passcode input fallback. Entering the code (e.g. `TRAIL4`) bypasses camera scanner requirements.
 - **Location fallbacks**: Geolocation timeouts or user permission denials fallback to default Tel Aviv mock coordinates, preventing applet crashes.
 - **Real Hardware Warning**: *Not tested on real physical mobile device sensors or GPS hardware (verification was simulated inside browser viewport emulation).*
@@ -141,11 +142,12 @@ Audited layouts at simulated screen widths:
 **Status: VERIFIED (SUCCESS)**
 Inspected Firestore collections in the emulator UI:
 - `/routes/{routeId}` -> correctly points to `approvedVersionId`.
-- `/routes/{routeId}/versions` -> holds independent immutable snapshots for `V1` and `V2`.
-- `/routes/{routeId}/versions/{versionId}/privateAnswers/keys` -> exists and contains the correct answers.
+- `/routes/{routeId}/versions/{versionId}` -> holds independent immutable snapshots for `V1` and `V2`.
+- `/routes/{routeId}/versions/{versionId}/answerKeys/{taskId}` -> exists and contains the correct answers.
+- `/reviews/{reviewId}` -> exists and holds the pending/completed route version review requests.
 - `/routeSessions/{sessionId}` -> holds correct approved version references.
 - `/routeSessions/{sessionId}/participations/{userId}` -> contains the authoritative cumulative score.
-- `/routeSessions/{sessionId}/participations/{userId}/responses` -> contains public response logs with redacted correctness keys.
+- `/routeSessions/{sessionId}/participations/{userId}/responses/{responseId}` -> contains public response logs with redacted correctness keys.
 - `/routeSessions/{sessionId}/participations/{userId}/responses/{responseId}/privateEvaluation/record` -> exists and contains authoritative correctness records.
 
 ---
@@ -163,5 +165,8 @@ Inspected Firestore collections in the emulator UI:
 
 ## 14. Blockers & NOT TESTED Items
 
-- **Physical Sensor Testing**: Not tested on real physical camera hardware, mobile browser GPS sensors, or QR code camera captures (tested via simulated emulator fallbacks).
+- **Physical Sensor & Camera Testing**: Not tested on real physical camera hardware, mobile browser GPS sensors, or QR code camera captures (tested via simulated emulator fallbacks).
+- **Challenge Session E2E**: Not manually tested in browser UI E2E (backend integration and scoring calculations only).
+- **Browser Back**: Not manually tested in browser UI (inspected only).
 - **Blockers**: None. The VS1 E2E flow is fully integrated and functional.
+

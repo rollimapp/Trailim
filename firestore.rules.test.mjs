@@ -5,7 +5,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 const projectId = 'trailim-rules-test';
 let environment;
@@ -54,9 +54,15 @@ beforeEach(async () => {
       setDoc(doc(db, 'organizations', 'org-b'), { id: 'org-b', name: 'Organization B', status: 'active' }),
       setDoc(doc(db, 'organizations', 'org-a', 'memberships', 'student-a'), membership('org-a', 'student-a')),
       setDoc(doc(db, 'organizations', 'org-a', 'memberships', 'teacher-a'), membership('org-a', 'teacher-a', 'teacher')),
+      setDoc(doc(db, 'organizations', 'org-a', 'memberships', 'creator-a'), membership('org-a', 'creator-a')),
+      setDoc(doc(db, 'organizations', 'org-a', 'memberships', 'manager-a'), membership('org-a', 'manager-a')),
       setDoc(doc(db, 'organizations', 'org-b', 'memberships', 'student-b'), membership('org-b', 'student-b')),
       setDoc(doc(db, 'teams', 'team-a'), team('team-a', 'org-a', 'teacher-a')),
       setDoc(doc(db, 'teams', 'team-a', 'members', 'teacher-a'), teamMember('team-a', 'teacher-a', ['manager'])),
+      setDoc(doc(db, 'teams', 'creator-team'), team('creator-team', 'org-a', 'creator-a')),
+      setDoc(doc(db, 'teams', 'creator-team', 'members', 'existing-member'), teamMember('creator-team', 'existing-member')),
+      setDoc(doc(db, 'teams', 'managed-team'), team('managed-team', 'org-a', 'teacher-a')),
+      setDoc(doc(db, 'teams', 'managed-team', 'members', 'manager-a'), teamMember('managed-team', 'manager-a', ['manager'])),
     ]);
   });
 });
@@ -99,6 +105,62 @@ test('team access respects the organization boundary', async () => {
   const otherOrganization = environment.authenticatedContext('student-b').firestore();
   await assertSucceeds(getDoc(doc(sameOrganization, 'teams', 'team-a')));
   await assertFails(getDoc(doc(otherOrganization, 'teams', 'team-a')));
+});
+
+test('active creator can manage their own team', async () => {
+  const db = environment.authenticatedContext('creator-a').firestore();
+  await assertSucceeds(updateDoc(doc(db, 'teams', 'creator-team'), {
+    name: 'Creator updated team',
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test('creator with inactive organization membership cannot update their team', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'organizations', 'org-a', 'memberships', 'creator-a'), {
+      status: 'disabled',
+    });
+  });
+  const db = environment.authenticatedContext('creator-a').firestore();
+  await assertFails(updateDoc(doc(db, 'teams', 'creator-team'), {
+    name: 'Unauthorized update',
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test('inactive creator cannot add, update, or delete team members', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'organizations', 'org-a', 'memberships', 'creator-a'), {
+      status: 'disabled',
+    });
+  });
+  const db = environment.authenticatedContext('creator-a').firestore();
+  await assertFails(setDoc(
+    doc(db, 'teams', 'creator-team', 'members', 'new-member'),
+    teamMember('creator-team', 'new-member'),
+  ));
+  await assertFails(updateDoc(doc(db, 'teams', 'creator-team', 'members', 'existing-member'), {
+    roles: ['writer'],
+  }));
+  await assertFails(deleteDoc(doc(db, 'teams', 'creator-team', 'members', 'existing-member')));
+});
+
+test('active team manager also requires active organization membership', async () => {
+  const activeDb = environment.authenticatedContext('manager-a').firestore();
+  await assertSucceeds(updateDoc(doc(activeDb, 'teams', 'managed-team'), {
+    name: 'Manager update',
+    updatedAt: serverTimestamp(),
+  }));
+  await environment.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'organizations', 'org-a', 'memberships', 'manager-a'), {
+      status: 'disabled',
+    });
+  });
+  const inactiveDb = environment.authenticatedContext('manager-a').firestore();
+  await assertFails(updateDoc(doc(inactiveDb, 'teams', 'managed-team'), {
+    name: 'Inactive manager update',
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test('unauthorized student cannot add themselves to an arbitrary team as manager', async () => {

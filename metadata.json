@@ -1,0 +1,6 @@
+{
+  "name": "Trailim",
+  "description": "Place-based learning platform for educational tours, interactive routes, scavenger hunts, and community heritage trails.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

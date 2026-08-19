@@ -48,6 +48,54 @@ beforeEach(async () => {
       versionNumber: 2, sourceDraftId: 'draft-a', content: { title: 'Route V2' }, stationIds: [],
       createdByUserId: 'creator-a', submittedAt: now, status: 'submitted', visibility: 'class',
     }),
+    seed('routes/route-a/versions/version-approved/stations/station-1', {
+      id: 'station-1', routeId: 'route-a', routeVersionId: 'version-approved', position: 1,
+      tasks: [
+        { id: 'option-task', type: 'multiple_choice', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'retry-task', type: 'multiple_choice', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'text-case', type: 'open_text' }, { id: 'text-insensitive', type: 'open_text' },
+        { id: 'submission-task', type: 'reflection' }, { id: 'manual-task', type: 'open_text' },
+        { id: 'reveal-immediate', type: 'multiple_choice', answerRevealPolicy: 'immediate', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'reveal-after', type: 'multiple_choice', answerRevealPolicy: 'after_route', options: [{ id: 'a' }, { id: 'b' }] },
+        { id: 'reveal-never', type: 'multiple_choice', answerRevealPolicy: 'never', options: [{ id: 'a' }, { id: 'b' }] },
+      ],
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/option-task', {
+      id: 'option-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'option-task',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/retry-task', {
+      id: 'retry-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'retry-task',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/text-case', {
+      id: 'text-case', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'text-case',
+      validation: { kind: 'accepted_text', acceptedAnswers: ['Trail'], caseSensitive: true }, pointsAwarded: 4, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/text-insensitive', {
+      id: 'text-insensitive', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'text-insensitive',
+      validation: { kind: 'accepted_text', acceptedAnswers: ['Trail'], caseSensitive: false }, pointsAwarded: 4, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/submission-task', {
+      id: 'submission-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'submission-task',
+      validation: { kind: 'submission_only' }, pointsAwarded: 3, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/manual-task', {
+      id: 'manual-task', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'manual-task',
+      validation: { kind: 'manual_review' }, pointsAwarded: 20, allowRetry: false, penaltyPerAttempt: 0,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-immediate', {
+      id: 'reveal-immediate', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-immediate',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-after', {
+      id: 'reveal-after', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-after',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
+    }),
+    seed('routes/route-a/versions/version-approved/answerKeys/reveal-never', {
+      id: 'reveal-never', recordType: 'task_answer', routeVersionId: 'version-approved', stationId: 'station-1', taskId: 'reveal-never',
+      validation: { kind: 'option_ids', correctOptionIds: ['a'] }, pointsAwarded: 10, allowRetry: true, attemptLimit: 3, penaltyPerAttempt: 2,
+    }),
   ]);
 });
 
@@ -190,4 +238,333 @@ test('inactive organization member cannot join and abandon is idempotent', async
   await service.abandonParticipation(sessionId, 'student-a');
   await service.abandonParticipation(sessionId, 'student-a');
   assert.equal((await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data().status, 'abandoned');
+});
+
+const joinedSession = async () => {
+  const { sessionId } = await createSession();
+  await service.joinRouteSession(sessionId, 'student-a');
+  return sessionId;
+};
+
+test('trusted option evaluation awards configured points once and rejects forged option shapes', async () => {
+  const sessionId = await joinedSession();
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 'sub-1');
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.pointsAwarded, 10);
+  assert.equal(result.score, 10);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 'sub-2'), /Retry is not allowed/);
+  assert.equal((await firestore.collection(`routeSessions/${sessionId}/participations/student-a/responses`).get()).size, 1);
+});
+
+test('incorrect answer awards zero and option IDs are strict', async () => {
+  let sessionId = await joinedSession();
+  const result = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'b', 'student-a', 'sub-3');
+  assert.equal(result.isCorrect, false);
+  assert.equal(result.pointsAwarded, 0);
+  sessionId = (await createSession()).sessionId;
+  await service.joinRouteSession(sessionId, 'student-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['unknown'], 'student-a', 'sub-4'), /Unknown option/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a', 'a'], 'student-a', 'sub-5'), /unique option/);
+});
+
+test('retry scoring replaces prior award by delta and attempt limit is atomic', async () => {
+  const sessionId = await joinedSession();
+  await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-6');
+  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-7');
+  assert.equal(second.pointsAwarded, 8);
+  assert.equal(second.score, 8);
+  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-8');
+  assert.equal(third.pointsAwarded, 6);
+  assert.equal(third.score, 6);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-9'), /Attempt limit/);
+});
+
+test('concurrent duplicate submission creates one response and cannot inflate score', async () => {
+  const sessionId = await joinedSession();
+  const results = await Promise.allSettled([
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-con-1'),
+    service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-con-2'),
+  ]);
+  assert.equal(results.filter(item => item.status === 'fulfilled').length, 1);
+  assert.equal((await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data().score, 10);
+});
+
+test('accepted text respects exact case policy', async () => {
+  const sessionId = await joinedSession();
+  const sensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'trail', 'student-a', 'sub-10');
+  const insensitive = await service.submitTaskResponse(sessionId, 'station-1', 'text-insensitive', 'trail', 'student-a', 'sub-11');
+  assert.equal(sensitive.isCorrect, false);
+  assert.equal(insensitive.isCorrect, true);
+  assert.equal(insensitive.pointsAwarded, 4);
+});
+
+test('submission-only awards configured points while manual review awards none', async () => {
+  const sessionId = await joinedSession();
+  const submitted = await service.submitTaskResponse(sessionId, 'station-1', 'submission-task', 'evidence', 'student-a', 'sub-12');
+  const manual = await service.submitTaskResponse(sessionId, 'station-1', 'manual-task', 'essay', 'student-a', 'sub-13');
+  assert.equal(submitted.evaluationStatus, 'evaluated');
+  assert.equal(submitted.isCorrect, undefined);
+  assert.equal(submitted.pointsAwarded, 3);
+  assert.equal(manual.evaluationStatus, 'manual_review');
+  assert.equal(manual.pointsAwarded, 0);
+  assert.equal(manual.score, 3);
+});
+
+test('task, key, identity, membership, and terminal gates fail closed', async () => {
+  const sessionId = await joinedSession();
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'missing', 'x', 'student-a', 'sub-14'), /Task must exist/);
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/option-task').update({ stationId: 'station-2' });
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-15'), /AnswerKey identity/);
+  await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'disabled' });
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a', 'sub-16'), /Active organization membership/);
+  await firestore.doc('organizations/org-a/memberships/student-a').update({ status: 'active' });
+  await service.updateRouteSessionStatus(sessionId, 'completed', 'teacher-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'text-case', 'Trail', 'student-a', 'sub-17'), /terminal/);
+});
+
+test('cancelled session, abandoned participation, other user, and cross-organization caller are denied', async () => {
+  let sessionId = await joinedSession();
+  await service.updateRouteSessionStatus(sessionId, 'cancelled', 'teacher-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-18'), /terminal/);
+  sessionId = await joinedSession();
+  await service.abandonParticipation(sessionId, 'student-a');
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-a', 'sub-19'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'student-2', 'sub-20'), /not active/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', 'a', 'teacher-b', 'sub-21'), /not active/);
+});
+
+test('validation - submissionId is strictly required, non-empty and string', async () => {
+  const sessionId = await joinedSession();
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', undefined), /submissionId is required/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', ''), /submissionId is required/);
+  await assert.rejects(service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 123), /submissionId is required/);
+});
+
+test('idempotency - same submission ID deduplicates concurrent and sequential attempts', async () => {
+  const sessionId = await joinedSession();
+
+  // 1. Concurrent same submission ID with allowRetry=true => one attempt
+  const results = await Promise.all([
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1'),
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1'),
+  ]);
+  assert.equal(results[0].attemptCount, 1);
+  assert.equal(results[1].attemptCount, 1);
+  assert.equal(results[0].score, 0);
+  assert.equal(results[1].score, 0);
+
+  // 2. Network replay same submission ID => same result, same attemptCount, same score
+  const replay = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-1');
+  assert.equal(replay.attemptCount, 1);
+  assert.equal(replay.pointsAwarded, 0);
+  assert.equal(replay.score, 0);
+
+  // 3. New submission ID => second attempt (which is a genuine new attempt)
+  const second = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-2');
+  assert.equal(second.attemptCount, 2);
+  assert.equal(second.pointsAwarded, 8);
+  assert.equal(second.score, 8);
+
+  // 4. Replay of second attempt => same result, attemptCount = 2, score = 8
+  const replaySecond = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-2');
+  assert.equal(replaySecond.attemptCount, 2);
+  assert.equal(replaySecond.pointsAwarded, 8);
+  assert.equal(replaySecond.score, 8);
+
+  // 5. New submission ID for third attempt => third attempt (which is a genuine new attempt)
+  const third = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-3');
+  assert.equal(third.attemptCount, 3);
+  assert.equal(third.pointsAwarded, 6);
+  assert.equal(third.score, 6);
+
+  // 6. Attempt limit still enforced
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-4'),
+    /Attempt limit exceeded/
+  );
+
+  // 7. But replay of the third attempt (same submission ID) is still allowed and returns the same result
+  const replayThird = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-3');
+  assert.equal(replayThird.attemptCount, 3);
+  assert.equal(replayThird.pointsAwarded, 6);
+  assert.equal(replayThird.score, 6);
+});
+
+test('idempotency - survived out-of-order replays', async () => {
+  const sessionId = await joinedSession();
+
+  // Attempt A: submit answer 'b' (incorrect) with idemp-A
+  const resultA = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-A');
+  assert.equal(resultA.attemptCount, 1);
+  assert.equal(resultA.isCorrect, false);
+  assert.equal(resultA.pointsAwarded, 0);
+
+  // Attempt B: submit answer 'a' (correct) with idemp-B
+  const resultB = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'idemp-B');
+  assert.equal(resultB.attemptCount, 2);
+  assert.equal(resultB.isCorrect, true);
+  assert.equal(resultB.pointsAwarded, 8); // penalty of 2 applied
+
+  // Replay Attempt A: submit answer 'b' (incorrect) with idemp-A
+  // Even though it is submitted after B, it must return cached A evaluation without incrementing attemptCount or changing score
+  const replayA = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'idemp-A');
+  assert.equal(replayA.attemptCount, 1);
+  assert.equal(replayA.isCorrect, false);
+  assert.equal(replayA.pointsAwarded, 0);
+  assert.equal(replayA.score, 8); // score remains B's score
+});
+
+test('reveal policy - immediate, after_route, and never disclosures', async () => {
+  const sessionId = await joinedSession();
+  const responseDocumentId = (stationId, taskId) =>
+    Buffer.from(JSON.stringify([stationId, taskId])).toString('base64url');
+
+  // 1. Submit immediate reveal task response
+  const immRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-immediate', 'a', 'student-a', 'id-imm');
+  assert.equal(immRes.isCorrect, true);
+  assert.equal(immRes.pointsAwarded, 10);
+
+  // Verify fields exist on public document
+  const immDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-immediate')}`).get()).data();
+  assert.equal(immDoc.isCorrect, true);
+  assert.equal(immDoc.pointsAwarded, 10);
+
+  // 2. Submit after_route reveal task response (before participation completion)
+  const aftRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'id-aft');
+  assert.equal(aftRes.isCorrect, undefined); // hidden from client return
+  assert.equal(aftRes.pointsAwarded, undefined); // hidden from client return
+
+  // Verify fields are absent on public response document
+  const aftDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-after')}`).get()).data();
+  assert.equal(aftDoc.isCorrect, undefined);
+  assert.equal(aftDoc.pointsAwarded, undefined);
+
+  // But verify they are stored on private evaluation record
+  const aftPriv = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-after')}/privateEvaluation/record`).get()).data();
+  assert.equal(aftPriv.isCorrect, true);
+  assert.equal(aftPriv.pointsAwarded, 10);
+
+  // 3. Submit never reveal task response
+  const nevRes = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'id-nev');
+  assert.equal(nevRes.isCorrect, undefined);
+  assert.equal(nevRes.pointsAwarded, undefined);
+
+  const nevDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a/responses/${responseDocumentId('station-1', 'reveal-never')}`).get()).data();
+  assert.equal(nevDoc.isCorrect, undefined);
+  assert.equal(nevDoc.pointsAwarded, undefined);
+});
+
+test('reveal policy scoring - retry and scoring behavior for hidden and immediate policies', async () => {
+  const sessionId = await joinedSession();
+
+  // 1. after_route retry:
+  // attempt 1 correct = 10 points
+  const r1 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'aft-id-1');
+  assert.equal(r1.pointsAwarded, undefined); // hidden
+  assert.equal(r1.score, 10);
+
+  // attempt 2 correct with penalty = 8 points (penalty = 2)
+  const r2 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-after', 'a', 'student-a', 'aft-id-2');
+  assert.equal(r2.pointsAwarded, undefined); // hidden
+  // Score should be 8 (10 - 10 + 8), NOT 18!
+  assert.equal(r2.score, 8);
+
+  // 2. never retry:
+  // attempt 1 correct = 10 points
+  const n1 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'nev-id-1');
+  assert.equal(n1.pointsAwarded, undefined); // hidden
+  // Score is now 8 (from before) + 10 = 18
+  assert.equal(n1.score, 18);
+
+  // attempt 2 correct with penalty = 8 points
+  const n2 = await service.submitTaskResponse(sessionId, 'station-1', 'reveal-never', 'a', 'student-a', 'nev-id-2');
+  assert.equal(n2.pointsAwarded, undefined); // hidden
+  // Score should be 8 (from before) + 8 = 16 (NOT 18 + 8 = 26!)
+  assert.equal(n2.score, 16);
+
+  // 3. incorrect -> correct hidden policy:
+  const sess2 = await joinedSession();
+  // attempt 1 incorrect = 0 points
+  const i1 = await service.submitTaskResponse(sess2, 'station-1', 'reveal-after', 'b', 'student-a', 'inc-id-1');
+  assert.equal(i1.score, 0);
+
+  // attempt 2 correct = 8 points (10 - 2 penalty)
+  const i2 = await service.submitTaskResponse(sess2, 'station-1', 'reveal-after', 'a', 'student-a', 'inc-id-2');
+  assert.equal(i2.score, 8); // score == 8 (0 - 0 + 8)
+
+  // 4. correct -> incorrect hidden policy:
+  const sess3 = await joinedSession();
+  // attempt 1 correct = 10 points
+  const c1 = await service.submitTaskResponse(sess3, 'station-1', 'reveal-after', 'a', 'student-a', 'cor-id-1');
+  assert.equal(c1.score, 10);
+
+  // attempt 2 incorrect = 0 points
+  const c2 = await service.submitTaskResponse(sess3, 'station-1', 'reveal-after', 'b', 'student-a', 'cor-id-2');
+  assert.equal(c2.score, 0); // score == 0 (10 - 10 + 0)
+
+  // 5. immediate policy still behaves identically:
+  const sess4 = await joinedSession();
+  const imm1 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-1');
+  assert.equal(imm1.isCorrect, true);
+  assert.equal(imm1.pointsAwarded, 10);
+  assert.equal(imm1.score, 10);
+
+  const imm2 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-2');
+  assert.equal(imm2.isCorrect, true);
+  assert.equal(imm2.pointsAwarded, 8);
+  assert.equal(imm2.score, 8);
+
+  // 6. replay of old submission ID remains idempotent and does not alter score:
+  const replayImm1 = await service.submitTaskResponse(sess4, 'station-1', 'reveal-immediate', 'a', 'student-a', 'imm-id-1');
+  assert.equal(replayImm1.pointsAwarded, 10);
+  assert.equal(replayImm1.score, 8); // overall score remains 8 (since imm2 set it to 8)
+});
+
+test('retry limits - strict constraints on attemptLimit when retry is allowed', async () => {
+  const sessionId = await joinedSession();
+
+  // Temporary alter answerKey to test validation
+  // 1. allowRetry = true with no attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: null });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-1'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // 2. allowRetry = true with zero attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: 0 });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-2'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // 3. allowRetry = true with negative attemptLimit => rejected
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: -5 });
+  await assert.rejects(
+    service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'id-bad-3'),
+    /Retry requires a finite positive attemptLimit/
+  );
+
+  // Restore valid setting
+  await firestore.doc('routes/route-a/versions/version-approved/answerKeys/retry-task').update({ attemptLimit: 3 });
+
+  // 4. All valid attempts remain replay-idempotent
+  const r1 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-valid-1');
+  const r2 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-2');
+  assert.equal(r2.attemptCount, 2);
+  assert.equal(r2.score, 8);
+
+  const replayR1 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'b', 'student-a', 'sub-valid-1');
+  assert.equal(replayR1.attemptCount, 1);
+  assert.equal(replayR1.score, 8); // score remains r2's current score
+
+  // 5. Old attempt replay after final allowed attempt does not change attemptCount or score
+  const r3 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-3');
+  assert.equal(r3.attemptCount, 3);
+  assert.equal(r3.score, 6);
+
+  // Replay r2 after r3 completes
+  const replayR2 = await service.submitTaskResponse(sessionId, 'station-1', 'retry-task', 'a', 'student-a', 'sub-valid-2');
+  assert.equal(replayR2.attemptCount, 2);
+  assert.equal(replayR2.score, 6); // attemptCount is 2, score is still 6
 });

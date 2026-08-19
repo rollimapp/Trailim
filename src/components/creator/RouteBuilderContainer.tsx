@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Route, Station, ExperienceMode, RouteType, ContentBlock, Task, StationType, TriggerType } from '../../types';
 import { dataService } from '../../services/dataService';
-import { toRouteDraft, toVs1Route, toVs1Team } from '../../services/vs1Adapters';
+import { toRouteDraft, toVs1Route, toVs1Team, splitLegacyTask } from '../../services/vs1Adapters';
 import { vs1WorkflowRepository } from '../../services/vs1WorkflowRepository';
 import { useAuth } from '../../context/AuthContext';
+import { getEnabledFirestoreRouteDraftRepository } from '../../services/firebase/routeDraftPersistence';
+import { firebaseVersionReviewGateway, isFirebaseVersionReviewEnabled } from '../../services/firebase/versionReviewGateway';
+import { isFirebaseConfigured, getFirebaseServices } from '../../services/firebase/firebaseClient';
 import { MediaUploader } from '../common/MediaUploader';
 import { NewTeamModal } from './NewTeamModal';
 import { StationTemplateModal, StationTemplate } from './StationTemplateModal';
@@ -28,6 +31,9 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
   onPreview
 }) => {
   const { currentUser } = useAuth();
+  const [initialRouteStations] = useState<Station[]>(() => 
+    initialRoute?.id ? dataService.getStationsForRoute(initialRoute.id) : []
+  );
   
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showTeamModal, setShowTeamModal] = useState<boolean>(false);
@@ -226,6 +232,74 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
   const [activeStationIndex, setActiveStationIndex] = useState<number>(0);
 
+  useEffect(() => {
+    const firebaseRepo = getEnabledFirestoreRouteDraftRepository();
+    if (firebaseRepo && routeData.id && getFirebaseServices().auth.currentUser) {
+      (async () => {
+        try {
+          const draft = await firebaseRepo.getDraft(routeData.id, routeData.currentDraftVersionId || `draft-${routeData.id}`);
+          if (draft && draft.stations.length > 0) {
+            const mappedStations = draft.stations.map(ds => {
+              const legacyStation: Station = {
+                id: ds.id,
+                routeId: ds.routeId,
+                title: ds.title,
+                shortLabel: ds.shortLabel,
+                description: ds.description,
+                instructions: ds.instructions || '',
+                position: ds.position,
+                stationType: ds.stationType,
+                contentBlocks: ds.contentBlocks.map(cb => ({ ...cb })),
+                trigger: {
+                  type: ds.trigger.type,
+                  accessCode: initialRouteStations.find(s => s.id === ds.id)?.trigger.accessCode,
+                  QRCodeValue: initialRouteStations.find(s => s.id === ds.id)?.trigger.QRCodeValue,
+                },
+                tasks: ds.tasks.map(t => ({
+                  id: t.id,
+                  type: t.type,
+                  prompt: t.prompt,
+                  description: t.description,
+                  options: t.options?.map(o => {
+                    const initialStation = initialRouteStations.find(s => s.id === ds.id);
+                    const initialTask = initialStation?.tasks.find(tk => tk.id === t.id);
+                    const initialOption = initialTask?.options?.find(opt => opt.id === o.id);
+                    return {
+                      id: o.id,
+                      text: o.text,
+                      isCorrect: initialOption?.isCorrect,
+                      explanation: initialOption?.explanation,
+                    };
+                  }),
+                  points: t.displayPoints || 0,
+                  required: t.required,
+                  mediaAttachmentUrl: t.mediaAttachmentUrl,
+                  hint: t.hint,
+                  answerRevealPolicy: t.answerRevealPolicy,
+                  correctAnswers: initialRouteStations.find(s => s.id === ds.id)?.tasks.find(tk => tk.id === t.id)?.correctAnswers,
+                })),
+                possiblePoints: ds.tasks.reduce((acc, t) => acc + (t.displayPoints || 0), 0),
+                estimatedTimeMinutes: ds.estimatedTimeMinutes,
+                required: ds.required,
+                allowSkip: ds.allowSkip,
+                allowRevisit: ds.allowRevisit,
+                safetyNote: ds.safetyNote,
+                accessibilityAlternative: ds.accessibilityAlternative,
+                locationData: ds.locationData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              return legacyStation;
+            });
+            setStations(mappedStations);
+          }
+        } catch (err) {
+          console.error('Failed to load draft stations from Firebase:', err);
+        }
+      })();
+    }
+  }, [routeData.id]);
+
   const prepareVersionedDraft = (fullRoute: Route) => {
     const existingRoute = vs1WorkflowRepository.getRoute(fullRoute.id);
     const mappedRoute = toVs1Route(fullRoute);
@@ -254,7 +328,7 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     return { existingRoute, workflowRoute, draft };
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     const fullRoute: Route = {
       ...(routeData as Route),
       stationIds: stations.map(s => s.id),
@@ -263,6 +337,26 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
     dataService.saveRoute(fullRoute);
     stations.forEach(s => dataService.saveStation(s));
+
+    const firebaseRepo = getEnabledFirestoreRouteDraftRepository();
+    if (firebaseRepo) {
+      try {
+        const mappedRoute = toVs1Route(fullRoute);
+        const draft = toRouteDraft(fullRoute, stations, currentUser.id);
+        const existing = await firebaseRepo.getRoute(fullRoute.id);
+        if (!existing) {
+          await firebaseRepo.createRouteWithDraft(mappedRoute, draft);
+        } else {
+          await firebaseRepo.saveDraft(draft);
+        }
+        alert('Project draft saved to Firebase successfully!');
+      } catch (err) {
+        console.error('Failed to save draft to Firebase:', err);
+        alert('Failed to save draft: ' + (err as Error).message);
+      }
+      return;
+    }
+
     const { workflowRoute } = prepareVersionedDraft(fullRoute);
     vs1WorkflowRepository.saveRoute(workflowRoute);
     alert('Project draft saved successfully!');
@@ -326,7 +420,7 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     setActiveStationIndex(Math.max(0, index - 1));
   };
 
-  const handleSubmitForReview = (targetVisibility: string, noteToTeacher: string, reflections: Record<string, string>) => {
+  const handleSubmitForReview = async (targetVisibility: string, noteToTeacher: string, reflections: Record<string, string>) => {
     const fullRoute: Route = {
       ...(routeData as Route),
       stationIds: stations.map(s => s.id),
@@ -337,6 +431,64 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
     dataService.saveRoute(fullRoute);
     stations.forEach(s => dataService.saveStation(s));
+
+    if (isFirebaseVersionReviewEnabled()) {
+      try {
+        const firebaseRepo = getEnabledFirestoreRouteDraftRepository();
+        if (firebaseRepo) {
+          const mappedRoute = toVs1Route(fullRoute);
+          const draft = toRouteDraft(fullRoute, stations, currentUser.id);
+          const existing = await firebaseRepo.getRoute(fullRoute.id);
+          if (!existing) {
+            await firebaseRepo.createRouteWithDraft(mappedRoute, draft);
+          } else {
+            await firebaseRepo.saveDraft(draft);
+          }
+        }
+
+        const answerKeys = stations.flatMap(station =>
+          station.tasks.map(task => {
+            const { answerKey } = splitLegacyTask(task, 'placeholder', station.id);
+            return {
+              stationId: station.id,
+              taskId: task.id,
+              validation: answerKey.validation,
+              pointsAwarded: answerKey.pointsAwarded,
+              attemptLimit: answerKey.attemptLimit,
+              allowRetry: answerKey.allowRetry,
+              penaltyPerAttempt: answerKey.penaltyPerAttempt,
+              explanationByOptionId: answerKey.explanationByOptionId,
+            };
+          })
+        );
+        const triggers = stations
+          .filter(station => station.trigger.type === 'qr_code' || station.trigger.type === 'access_code')
+          .map(station => ({
+            stationId: station.id,
+            triggerType: station.trigger.type as 'qr_code' | 'access_code',
+            secret: (station.trigger.QRCodeValue || station.trigger.accessCode || 'TRAIL4'),
+          }));
+        const protectedData = { answerKeys, triggers };
+
+        const result = await firebaseVersionReviewGateway.submitDraft(fullRoute.id, protectedData);
+        const versionId = (result.data as any).versionId;
+
+        dataService.saveRoute({
+          ...fullRoute,
+          currentDraftVersionId: `draft-${fullRoute.id}`,
+          versionIds: [...(fullRoute.versionIds || []), versionId],
+        });
+
+        alert(`Submitted project to teacher Ms. Elena Vance! Status: Submitted for Review.`);
+        onClose();
+        return;
+      } catch (err) {
+        console.error('Firebase submission failed:', err);
+        alert('Failed to submit route for review: ' + (err as Error).message);
+        return;
+      }
+    }
+
     const { existingRoute, workflowRoute, draft } = prepareVersionedDraft(fullRoute);
     const visibility = targetVisibility === 'school' ? 'school' : 'class';
     const submission = existingRoute?.status === 'changes_requested'
@@ -352,7 +504,7 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     onClose();
   };
 
-  const handleResubmitToTeacher = () => {
+  const handleResubmitToTeacher = async () => {
     const fullRoute: Route = {
       ...(routeData as Route),
       publishingStatus: 'submitted_to_teacher',
@@ -361,6 +513,57 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
 
     dataService.saveRoute(fullRoute);
     stations.forEach(s => dataService.saveStation(s));
+
+    if (isFirebaseVersionReviewEnabled()) {
+      try {
+        const firebaseRepo = getEnabledFirestoreRouteDraftRepository();
+        if (firebaseRepo) {
+          const draft = toRouteDraft(fullRoute, stations, currentUser.id);
+          await firebaseRepo.saveDraft(draft);
+        }
+
+        const answerKeys = stations.flatMap(station =>
+          station.tasks.map(task => {
+            const { answerKey } = splitLegacyTask(task, 'placeholder', station.id);
+            return {
+              stationId: station.id,
+              taskId: task.id,
+              validation: answerKey.validation,
+              pointsAwarded: answerKey.pointsAwarded,
+              attemptLimit: answerKey.attemptLimit,
+              allowRetry: answerKey.allowRetry,
+              penaltyPerAttempt: answerKey.penaltyPerAttempt,
+              explanationByOptionId: answerKey.explanationByOptionId,
+            };
+          })
+        );
+        const triggers = stations
+          .filter(station => station.trigger.type === 'qr_code' || station.trigger.type === 'access_code')
+          .map(station => ({
+            stationId: station.id,
+            triggerType: station.trigger.type as 'qr_code' | 'access_code',
+            secret: (station.trigger.QRCodeValue || station.trigger.accessCode || 'TRAIL4'),
+          }));
+        const protectedData = { answerKeys, triggers };
+
+        const result = await firebaseVersionReviewGateway.resubmit(fullRoute.id, protectedData);
+        const versionId = (result.data as any).versionId;
+
+        dataService.saveRoute({
+          ...fullRoute,
+          currentDraftVersionId: `draft-${fullRoute.id}`,
+          versionIds: [...(fullRoute.versionIds || []), versionId],
+        });
+        alert('Resubmitted revised project to teacher!');
+        onClose();
+        return;
+      } catch (err) {
+        console.error('Firebase resubmission failed:', err);
+        alert('Failed to resubmit route: ' + (err as Error).message);
+        return;
+      }
+    }
+
     const { existingRoute, workflowRoute, draft } = prepareVersionedDraft(fullRoute);
     const submission = existingRoute?.status === 'changes_requested'
       ? vs1WorkflowRepository.resubmit(fullRoute.id, draft, stations, currentUser.id, fullRoute.visibility === 'school' ? 'school' : 'class')

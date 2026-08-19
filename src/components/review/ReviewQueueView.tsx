@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReviewItem, Route, Station } from '../../types';
 import { dataService } from '../../services/dataService';
 import { mergeVersionedAndLegacyReviews, toLegacyVersionPreview } from '../../services/vs1Adapters';
 import { vs1WorkflowRepository } from '../../services/vs1WorkflowRepository';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldCheck, CheckCircle2, AlertCircle, Eye, MessageSquare, Clock, Send } from 'lucide-react';
+import { firebaseVersionReviewGateway, isFirebaseVersionReviewEnabled } from '../../services/firebase/versionReviewGateway';
+import { firestoreVersionReviewRepository } from '../../services/firebase/versionReviewRepository';
+import { firestoreRouteDraftRepository } from '../../services/firebase/routeDraftRepository';
 
 interface ReviewQueueViewProps {
   onPreviewRoute: (route: Route, stations?: Station[]) => void;
@@ -40,8 +43,104 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [feedback, setFeedback] = useState('');
 
-  const handleAction = (action: 'approve' | 'request_changes' | 'reject') => {
+  const loadFirebaseQueue = async () => {
+    if (isFirebaseVersionReviewEnabled()) {
+      try {
+        const versionedReviews = await firestoreVersionReviewRepository.listPendingReviews('org-edu-1');
+        const mappedReviews = await Promise.all(versionedReviews.map(async (review) => {
+          const version = await firestoreVersionReviewRepository.getVersion(review.routeId, review.routeVersionId);
+          const route = await firestoreRouteDraftRepository.getRoute(review.routeId);
+          return {
+            id: review.id,
+            routeId: review.routeId,
+            routeTitle: version?.content.title || 'Untitled Trail',
+            creatorId: review.submittedByUserId,
+            creatorName: review.submittedByUserId === 'student-1' ? 'Maya Lin' : 'Elena Vance',
+            creatorRole: review.submittedByUserId === 'student-1' ? 'student' as const : 'teacher' as const,
+            schoolName: 'Greenwood High School',
+            subject: version?.content.subject || '',
+            stationCount: version?.stationIds.length || 0,
+            submittedAt: review.submittedAt,
+            status: 'submitted' as const,
+          };
+        }));
+        const legacy = dataService.getReviewQueue().filter(review =>
+          review.status === 'submitted' || review.status === 'in_review'
+        );
+        setQueue(mergeVersionedAndLegacyReviews(mappedReviews, legacy));
+      } catch (err) {
+        console.error('Failed to load pending reviews from Firebase:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadFirebaseQueue();
+  }, [currentUser]);
+
+  const handlePreviewTrail = async (item: ReviewItem) => {
+    const route = dataService.getRouteById(item.routeId);
+    if (isFirebaseVersionReviewEnabled()) {
+      try {
+        const versionedReview = await firestoreVersionReviewRepository.getReview(item.id);
+        if (versionedReview) {
+          const version = await firestoreVersionReviewRepository.getVersion(item.routeId, versionedReview.routeVersionId);
+          const stations = await firestoreVersionReviewRepository.getVersionStations(item.routeId, versionedReview.routeVersionId);
+          if (version && stations && route) {
+            const preview = toLegacyVersionPreview(route, { version, stations });
+            onPreviewRoute(preview.route, preview.stations);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load version preview:', err);
+        alert('Failed to preview trail: ' + (err as Error).message);
+        return;
+      }
+    }
+
+    const versionedReview = vs1WorkflowRepository.getReview(item.id);
+    const versionedSnapshot = versionedReview
+      ? vs1WorkflowRepository.getParticipantSnapshot(versionedReview.routeVersionId)
+      : null;
+    const preview = route && versionedSnapshot
+      ? toLegacyVersionPreview(route, versionedSnapshot)
+      : null;
+    if (preview) {
+      onPreviewRoute(preview.route, preview.stations);
+    } else if (route) {
+      onPreviewRoute(route);
+    }
+  };
+
+  const handleAction = async (action: 'approve' | 'request_changes' | 'reject') => {
     if (!selectedReview) return;
+
+    if (isFirebaseVersionReviewEnabled() && action !== 'reject') {
+      try {
+        const versionedReview = await firestoreVersionReviewRepository.getReview(selectedReview.id);
+        if (versionedReview) {
+          if (action === 'request_changes') {
+            await firebaseVersionReviewGateway.requestChanges(selectedReview.id, feedback);
+            dataService.updateRouteStatus(selectedReview.routeId, 'changes_requested');
+          } else {
+            await firebaseVersionReviewGateway.approveVersion(versionedReview.routeVersionId, feedback);
+            const legacyRoute = dataService.updateRouteStatus(selectedReview.routeId, 'published_to_class', currentUser.id);
+            if (legacyRoute) dataService.saveRoute({ ...legacyRoute, teacherApproved: true });
+          }
+          await loadFirebaseQueue();
+          setSelectedReview(null);
+          setFeedback('');
+          alert(`Review updated: ${action.replace('_', ' ').toUpperCase()}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Firebase review action failed:', err);
+        alert('Failed to update review: ' + (err as Error).message);
+        return;
+      }
+    }
+
     const versionedReview = vs1WorkflowRepository.getReview(selectedReview.id);
     if (versionedReview && action !== 'reject') {
       if (action === 'request_changes') {
@@ -123,11 +222,9 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ onPreviewRoute
                   </div>
 
                   <div className="flex gap-2 border-t border-slate-100 pt-3">
-                    {route && (!versionedReview || preview) && (
+                    {route && (
                       <button
-                        onClick={() => preview
-                          ? onPreviewRoute(preview.route, preview.stations)
-                          : onPreviewRoute(route)}
+                        onClick={() => handlePreviewTrail(item)}
                         className="py-1.5 px-3 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-slate-200"
                       >
                         <Eye className="w-3.5 h-3.5" /> Preview Trail

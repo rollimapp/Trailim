@@ -1,4 +1,5 @@
 import { Firestore, Timestamp, type DocumentData, type Transaction } from 'firebase-admin/firestore';
+import { Buffer } from 'node:buffer';
 import { WorkflowError } from './versionReviewService.js';
 
 type SessionStatus = 'open' | 'active' | 'completed' | 'cancelled';
@@ -56,6 +57,9 @@ export interface ParticipationProgressInput {
   completedStationIds: string[];
   progressPercentage: number;
 }
+
+const responseDocumentId = (stationId: string, taskId: string) =>
+  Buffer.from(JSON.stringify([stationId, taskId])).toString('base64url');
 
 export class SessionParticipationService {
   constructor(private readonly firestore: Firestore) {}
@@ -231,6 +235,225 @@ export class SessionParticipationService {
       if (participation.status !== 'active') throw new WorkflowError('failed-precondition', 'Participation is terminal');
       transaction.update(participationRef, { status: 'abandoned', updatedAt: Timestamp.now() });
       return { participationId: participation.id };
+    });
+  }
+
+  async submitTaskResponse(sessionId: string, stationId: string, taskId: string, answer: unknown, userId: string, submissionId: string) {
+    requireString(sessionId, 'sessionId');
+    requireString(stationId, 'stationId');
+    requireString(taskId, 'taskId');
+    requireString(submissionId, 'submissionId');
+    const firestore = this.firestore;
+    return firestore.runTransaction(async transaction => {
+      const sessionRef = firestore.doc(`routeSessions/${sessionId}`);
+      const participationRef = sessionRef.collection('participations').doc(userId);
+      const sessionSnapshot = await transaction.get(sessionRef);
+      const participationSnapshot = await transaction.get(participationRef);
+      const session = sessionSnapshot.data();
+      const participation = participationSnapshot.data();
+      if (!sessionSnapshot.exists || !session || !writableSession(session)) {
+        throw new WorkflowError('failed-precondition', 'Parent session is terminal');
+      }
+      if (!participationSnapshot.exists || !participation || participation.status !== 'active') {
+        throw new WorkflowError('failed-precondition', 'Participation is not active');
+      }
+      if (participation.id !== `${sessionId}_${userId}` || participation.participantUserId !== userId ||
+        participation.sessionId !== sessionId || participation.routeId !== session.routeId ||
+        participation.routeVersionId !== session.routeVersionId) {
+        throw new WorkflowError('failed-precondition', 'Participation identity is incoherent');
+      }
+      await getMembership(transaction, firestore, session.organizationId, userId);
+
+      const versionRef = firestore.doc(`routes/${session.routeId}/versions/${session.routeVersionId}`);
+      const stationRef = versionRef.collection('stations').doc(stationId);
+      const keyRef = versionRef.collection('answerKeys').doc(taskId);
+      const versionSnapshot = await transaction.get(versionRef);
+      const stationSnapshot = await transaction.get(stationRef);
+      const keySnapshot = await transaction.get(keyRef);
+      const version = versionSnapshot.data();
+      const station = stationSnapshot.data();
+      const key = keySnapshot.data();
+      if (!versionSnapshot.exists || !version || version.id !== session.routeVersionId ||
+        version.routeId !== session.routeId || !Array.isArray(version.stationIds) ||
+        !version.stationIds.includes(stationId)) {
+        throw new WorkflowError('failed-precondition', 'Bound RouteVersion station is invalid');
+      }
+      if (!stationSnapshot.exists || !station || station.id !== stationId || station.routeId !== session.routeId ||
+        station.routeVersionId !== session.routeVersionId || !Array.isArray(station.tasks)) {
+        throw new WorkflowError('failed-precondition', 'Version station identity is incoherent');
+      }
+      const publicTaskIds = station.tasks.map((item: unknown) => item && typeof item === 'object' ? (item as DocumentData).id : null);
+      if (publicTaskIds.some((id: unknown) => typeof id !== 'string') || new Set(publicTaskIds).size !== publicTaskIds.length) {
+        throw new WorkflowError('failed-precondition', 'Version station task identities are incoherent');
+      }
+      const tasks = station.tasks.filter((item: unknown) => item && typeof item === 'object' && (item as DocumentData).id === taskId);
+      if (tasks.length !== 1) throw new WorkflowError('failed-precondition', 'Task must exist exactly once in the version station');
+      const task = tasks[0] as DocumentData;
+      if (!keySnapshot.exists || !key || key.recordType !== 'task_answer' || key.routeVersionId !== session.routeVersionId ||
+        key.stationId !== stationId || key.taskId !== taskId || !key.validation) {
+        throw new WorkflowError('failed-precondition', 'Protected AnswerKey identity is incoherent');
+      }
+
+      const responseRef = participationRef.collection('responses').doc(responseDocumentId(stationId, taskId));
+      const privateRef = responseRef.collection('privateEvaluation').doc('record');
+
+      const previousSnapshot = await transaction.get(responseRef);
+      const previous = previousSnapshot.data();
+      if (previousSnapshot.exists && (!previous || previous.id !== responseRef.id ||
+        previous.participationId !== participation.id || previous.sessionId !== sessionId ||
+        previous.routeId !== session.routeId || previous.routeVersionId !== session.routeVersionId ||
+        previous.stationId !== stationId || previous.taskId !== taskId)) {
+        throw new WorkflowError('failed-precondition', 'Existing TaskResponse identity is incoherent');
+      }
+
+      const privateSnapshot = await transaction.get(privateRef);
+      const privateData = privateSnapshot.data();
+
+      if (submissionId && typeof submissionId === 'string') {
+        let cached = null;
+        if (privateData && privateData.processedSubmissions && typeof privateData.processedSubmissions === 'object') {
+          cached = privateData.processedSubmissions[submissionId];
+        }
+        if (!cached && previous?.lastSubmissionId === submissionId) {
+          cached = {
+            evaluationStatus: previous.evaluationStatus,
+            isCorrect: previous.isCorrect,
+            pointsAwarded: previous.pointsAwarded,
+            attemptCount: previous.attemptCount,
+            feedback: previous.feedback,
+          };
+        }
+        if (cached) {
+          const revealPolicy = task.answerRevealPolicy || 'immediate';
+          const showCorrectness = revealPolicy === 'immediate';
+          return {
+            responseId: responseRef.id,
+            evaluationStatus: cached.evaluationStatus,
+            attemptCount: cached.attemptCount,
+            score: participation.score,
+            ...(showCorrectness ? {
+              isCorrect: cached.isCorrect,
+              pointsAwarded: cached.pointsAwarded,
+              feedback: cached.feedback,
+            } : {})
+          };
+        }
+      }
+
+      if (key.allowRetry === true) {
+        if (!Number.isInteger(key.attemptLimit) || key.attemptLimit <= 0) {
+          throw new WorkflowError('failed-precondition', 'Retry requires a finite positive attemptLimit');
+        }
+      }
+
+      const attemptCount = Number(previous?.attemptCount || 0) + 1;
+      if (previousSnapshot.exists && key.allowRetry !== true) {
+        throw new WorkflowError('failed-precondition', 'Retry is not allowed');
+      }
+      if (Number.isInteger(key.attemptLimit) && key.attemptLimit > 0 && attemptCount > key.attemptLimit) {
+        throw new WorkflowError('failed-precondition', 'Attempt limit exceeded');
+      }
+
+      let normalizedAnswer: string | string[];
+      let evaluationStatus: 'evaluated' | 'manual_review' = 'evaluated';
+      let isCorrect: boolean | undefined;
+      let awarded = 0;
+      const validation = key.validation as DocumentData;
+      if (validation.kind === 'option_ids') {
+        const submitted = typeof answer === 'string' ? [answer] : Array.isArray(answer) ? answer : null;
+        if (!submitted || submitted.some(item => typeof item !== 'string') || new Set(submitted).size !== submitted.length) {
+          throw new WorkflowError('invalid-argument', 'Option answer must contain unique option IDs');
+        }
+        const publicOptions = Array.isArray(task.options) ? task.options.map((item: DocumentData) => item?.id) : [];
+        if (submitted.some(item => !publicOptions.includes(item))) throw new WorkflowError('invalid-argument', 'Unknown option ID');
+        const correct = Array.isArray(validation.correctOptionIds) ? validation.correctOptionIds : [];
+        isCorrect = submitted.length === correct.length && submitted.every(item => correct.includes(item));
+        normalizedAnswer = submitted;
+      } else if (validation.kind === 'accepted_text') {
+        if (typeof answer !== 'string') throw new WorkflowError('invalid-argument', 'Text answer is required');
+        normalizedAnswer = answer;
+        const accepted = Array.isArray(validation.acceptedAnswers) ? validation.acceptedAnswers : [];
+        isCorrect = accepted.some((item: unknown) => typeof item === 'string' &&
+          (validation.caseSensitive ? item === answer : item.toLowerCase() === answer.toLowerCase()));
+      } else if (validation.kind === 'submission_only') {
+        if (typeof answer !== 'string' && !Array.isArray(answer)) throw new WorkflowError('invalid-argument', 'Submission answer is malformed');
+        normalizedAnswer = answer as string | string[];
+        awarded = Number(key.pointsAwarded) || 0;
+      } else if (validation.kind === 'manual_review') {
+        if (typeof answer !== 'string' && !Array.isArray(answer)) throw new WorkflowError('invalid-argument', 'Manual-review answer is malformed');
+        normalizedAnswer = answer as string | string[];
+        evaluationStatus = 'manual_review';
+      } else {
+        throw new WorkflowError('failed-precondition', 'Unsupported AnswerKey validation');
+      }
+      if (isCorrect === true) {
+        awarded = Math.max(0, (Number(key.pointsAwarded) || 0) - (Number(key.penaltyPerAttempt) || 0) * (attemptCount - 1));
+      }
+      const previousAward = Math.max(0, Number(privateData?.pointsAwarded) || 0);
+      const currentScore = Math.max(0, Number(participation.score) || 0);
+      const nextScore = Math.max(0, currentScore - previousAward + awarded);
+      const now = Timestamp.now();
+
+      const revealPolicy = task.answerRevealPolicy || 'immediate';
+      const showCorrectness = revealPolicy === 'immediate';
+      const feedback = isCorrect === undefined ? 'Pending teacher review' : (isCorrect ? 'Correct!' : 'Incorrect answer');
+
+      const publicResponse = {
+        id: responseRef.id, participationId: participation.id, sessionId,
+        routeId: session.routeId, routeVersionId: session.routeVersionId, stationId, taskId,
+        answer: normalizedAnswer, submittedAt: previous?.submittedAt || now, updatedAt: now,
+        evaluationStatus, attemptCount,
+        revealPolicy,
+        lastSubmissionId: submissionId || null,
+        ...(showCorrectness ? {
+          pointsAwarded: awarded,
+          feedback,
+          ...(isCorrect === undefined ? {} : { isCorrect })
+        } : {})
+      };
+
+      const oldProcessed = privateData?.processedSubmissions || {};
+      const nextProcessed = {
+        ...oldProcessed,
+        [submissionId]: {
+          attemptCount,
+          evaluationStatus,
+          pointsAwarded: awarded,
+          feedback,
+          score: nextScore,
+          ...(isCorrect === undefined ? {} : { isCorrect })
+        }
+      };
+
+      const privateEvaluation = {
+        id: 'record',
+        revealPolicy,
+        evaluationStatus,
+        pointsAwarded: awarded,
+        feedback,
+        processedSubmissions: nextProcessed,
+        updatedAt: now,
+        ...(isCorrect === undefined ? {} : { isCorrect })
+      };
+
+      if (previousSnapshot.exists) transaction.set(responseRef, publicResponse);
+      else transaction.create(responseRef, publicResponse);
+
+      transaction.set(privateRef, privateEvaluation);
+
+      transaction.update(participationRef, { score: nextScore, updatedAt: now });
+
+      return {
+        responseId: responseRef.id,
+        evaluationStatus,
+        attemptCount,
+        score: nextScore,
+        ...(showCorrectness ? {
+          isCorrect,
+          pointsAwarded: awarded,
+          feedback
+        } : {})
+      };
     });
   }
 }

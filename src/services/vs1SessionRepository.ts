@@ -281,6 +281,7 @@ export class Vs1SessionRepository {
       id: existing?.id || this.createId('response'),
       participationId: participation.id,
       sessionId: participation.sessionId,
+      routeId: participation.routeId,
       routeVersionId: participation.routeVersionId,
       stationId: input.stationId,
       taskId: input.taskId,

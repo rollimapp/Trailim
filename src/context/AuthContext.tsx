@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { mockUsers } from '../data/mockData';
+import { getFirebaseServices, isFirebaseConfigured } from '../services/firebase/firebaseClient';
+import { httpsCallable } from 'firebase/functions';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { getCallableFunctions } from '../services/firebase/versionReviewGateway';
 
 interface AuthContextType {
   currentUser: User;
@@ -25,7 +29,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = language;
   }, [language]);
 
+  // DEV/EMULATOR ONLY: Track switch request sequence and serialize execution
+  const lastSwitchIdRef = React.useRef<number>(0);
+  const authQueuePromiseRef = React.useRef<Promise<void>>(Promise.resolve());
+
+  const syncWithFirebase = async (userId: string, switchId: number) => {
+    if (!isFirebaseConfigured()) return;
+    try {
+      const services = getFirebaseServices();
+      if (userId === 'guest') {
+        if (switchId !== lastSwitchIdRef.current) return;
+        await signOut(services.auth);
+        return;
+      }
+
+      // DEV/EMULATOR ONLY bootstrap flow: seed database and authenticate with dev tokens
+      const functions = getCallableFunctions();
+      const seedCallable = httpsCallable(functions, 'devSeedDatabase');
+      await seedCallable();
+      if (switchId !== lastSwitchIdRef.current) return;
+
+      const tokenCallable = httpsCallable(functions, 'getDevCustomToken');
+      const tokenResult = await tokenCallable({ uid: userId });
+      if (switchId !== lastSwitchIdRef.current) return;
+      const token = (tokenResult.data as any).token;
+
+      await signInWithCustomToken(services.auth, token);
+      if (switchId !== lastSwitchIdRef.current) return;
+      console.log(`Successfully authenticated in Firebase Auth as: ${userId}`);
+    } catch (error) {
+      console.error('Firebase Auth sync failed:', error);
+    }
+  };
+
+  useEffect(() => {
+    const startSwitchId = ++lastSwitchIdRef.current;
+    authQueuePromiseRef.current = authQueuePromiseRef.current.then(async () => {
+      await syncWithFirebase('student-1', startSwitchId);
+    });
+  }, []);
+
   const switchUser = (userId: 'student-1' | 'teacher-1' | 'approver-1' | 'guest') => {
+    const nextSwitchId = ++lastSwitchIdRef.current;
     if (userId === 'guest') {
       setCurrentUser({
         id: 'guest-user',
@@ -48,11 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdRoutesCount: 0,
         earnedBadges: [],
         languagePreference: language,
-      });
+      } as unknown as User);
     } else {
       setCurrentUser(mockUsers[userId] || mockUsers['student-1']);
     }
+
+    authQueuePromiseRef.current = authQueuePromiseRef.current.then(async () => {
+      await syncWithFirebase(userId, nextSwitchId);
+    });
   };
+
 
   const toggleSaveRoute = (routeId: string) => {
     setSavedRouteIds(prev => 

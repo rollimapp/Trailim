@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_FIREBASE_ROUTE_DRAFTS?: string;
   readonly VITE_ENABLE_FIREBASE_VERSION_REVIEW?: string;
   readonly VITE_ENABLE_FIREBASE_SESSION_PARTICIPATION?: string;
+  readonly VITE_ENABLE_FIREBASE_TASK_RESPONSE_SCORING?: string;
 }
 
 interface ImportMeta {

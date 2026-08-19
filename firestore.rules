@@ -1,0 +1,127 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function membershipPath(organizationId, userId) {
+      return /databases/$(database)/documents/organizations/$(organizationId)/memberships/$(userId);
+    }
+
+    function isActiveMember(organizationId) {
+      return signedIn()
+        && exists(membershipPath(organizationId, request.auth.uid))
+        && get(membershipPath(organizationId, request.auth.uid)).data.userId == request.auth.uid
+        && get(membershipPath(organizationId, request.auth.uid)).data.organizationId == organizationId
+        && get(membershipPath(organizationId, request.auth.uid)).data.status == 'active';
+    }
+
+    function isTeacher(organizationId) {
+      return isActiveMember(organizationId)
+        && get(membershipPath(organizationId, request.auth.uid)).data.role == 'teacher';
+    }
+
+    function teamPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId);
+    }
+
+    function teamMemberPath(teamId, userId) {
+      return /databases/$(database)/documents/teams/$(teamId)/members/$(userId);
+    }
+
+    function isTeamManager(teamId) {
+      return signedIn()
+        && exists(teamMemberPath(teamId, request.auth.uid))
+        && get(teamMemberPath(teamId, request.auth.uid)).data.status == 'active'
+        && get(teamMemberPath(teamId, request.auth.uid)).data.roles.hasAny(['manager']);
+    }
+
+    function canManageTeam(teamId, organizationId) {
+      return isActiveMember(organizationId)
+        && (
+          isTeacher(organizationId)
+          || get(teamPath(teamId)).data.createdByUserId == request.auth.uid
+          || isTeamManager(teamId)
+        );
+    }
+
+    function canManageTeamAfterWrite(teamId, organizationId) {
+      return isActiveMember(organizationId)
+        && (
+          isTeacher(organizationId)
+          || getAfter(teamPath(teamId)).data.createdByUserId == request.auth.uid
+          || isTeamManager(teamId)
+        );
+    }
+
+    function validTeam(teamId) {
+      return request.resource.data.keys().hasOnly([
+          'id', 'organizationId', 'name', 'createdByUserId', 'status', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.id == teamId
+        && request.resource.data.organizationId is string
+        && request.resource.data.name is string
+        && request.resource.data.createdByUserId is string
+        && request.resource.data.status in ['active', 'archived']
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function validTeamMember(teamId, userId) {
+      return request.resource.data.keys().hasOnly([
+          'id', 'teamId', 'userId', 'roles', 'status', 'joinedAt'
+        ])
+        && request.resource.data.id == teamId + '_' + userId
+        && request.resource.data.teamId == teamId
+        && request.resource.data.userId == userId
+        && request.resource.data.roles is list
+        && request.resource.data.roles.hasOnly([
+          'manager', 'researcher', 'writer', 'photographer', 'station_designer',
+          'question_designer', 'route_planner'
+        ])
+        && request.resource.data.status in ['active', 'removed']
+        && request.resource.data.joinedAt is timestamp;
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if isActiveMember(organizationId);
+      allow write: if false;
+
+      match /memberships/{userId} {
+        allow get: if signedIn() && (
+          request.auth.uid == userId || isTeacher(organizationId)
+        );
+        allow list: if isTeacher(organizationId);
+        allow write: if false;
+      }
+    }
+
+    match /teams/{teamId} {
+      allow read: if isActiveMember(resource.data.organizationId);
+      allow create: if validTeam(teamId)
+        && isActiveMember(request.resource.data.organizationId)
+        && request.resource.data.createdByUserId == request.auth.uid
+        && request.resource.data.status == 'active';
+      allow update: if validTeam(teamId)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.createdByUserId == resource.data.createdByUserId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && canManageTeam(teamId, resource.data.organizationId);
+      allow delete: if isTeacher(resource.data.organizationId);
+
+      match /members/{userId} {
+        allow read: if isActiveMember(get(teamPath(teamId)).data.organizationId);
+        allow create: if validTeamMember(teamId, userId)
+          && request.resource.data.status == 'active'
+          && isActiveMember(getAfter(teamPath(teamId)).data.organizationId)
+          && canManageTeamAfterWrite(teamId, getAfter(teamPath(teamId)).data.organizationId);
+        allow update: if validTeamMember(teamId, userId)
+          && request.resource.data.joinedAt == resource.data.joinedAt
+          && canManageTeam(teamId, get(teamPath(teamId)).data.organizationId);
+        allow delete: if canManageTeam(teamId, get(teamPath(teamId)).data.organizationId);
+      }
+    }
+  }
+}

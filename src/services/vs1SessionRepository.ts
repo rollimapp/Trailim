@@ -159,12 +159,17 @@ export class Vs1SessionRepository {
     return clone(participation);
   }
 
-  findActiveParticipation(routeVersionId: string, participantUserId: string) {
+  findActiveParticipation(routeVersionId: string, participantUserId: string, mode: ExperienceMode) {
     const state = this.read();
     const participation = [...state.participations].reverse().find(item =>
       item.routeVersionId === routeVersionId &&
       item.participantUserId === participantUserId &&
-      item.status === 'active'
+      item.status === 'active' &&
+      state.sessions.some(session =>
+        session.id === item.sessionId &&
+        session.mode === mode &&
+        (session.status === 'open' || session.status === 'active')
+      )
     );
     if (!participation) return null;
     const session = state.sessions.find(item => item.id === participation.sessionId);
@@ -180,12 +185,21 @@ export class Vs1SessionRepository {
     return participation ? clone(participation) : null;
   }
 
+  private getWritableParticipation(state: SessionState, participationId: string, action: string) {
+    const participation = state.participations.find(item => item.id === participationId);
+    const session = participation ? state.sessions.find(item => item.id === participation.sessionId) : undefined;
+    if (!participation || participation.status !== 'active') {
+      throw new Error(`Cannot ${action}: participation is not active`);
+    }
+    if (!session || (session.status !== 'open' && session.status !== 'active')) {
+      throw new Error(`Cannot ${action}: parent session is not active`);
+    }
+    return participation;
+  }
+
   updateProgress(participationId: string, progress: ProgressUpdate): Participation {
     const state = this.read();
-    const participation = state.participations.find(item => item.id === participationId);
-    if (!participation || participation.status !== 'active') {
-      throw new Error('Cannot update progress: participation is not active');
-    }
+    const participation = this.getWritableParticipation(state, participationId, 'update progress');
     participation.currentStationId = progress.currentStationId;
     participation.completedStationIds = [...progress.completedStationIds];
     participation.progressPercentage = progress.progressPercentage;
@@ -197,10 +211,7 @@ export class Vs1SessionRepository {
 
   completeParticipation(participationId: string, progress: ProgressUpdate): Participation {
     const state = this.read();
-    const participation = state.participations.find(item => item.id === participationId);
-    if (!participation || participation.status !== 'active') {
-      throw new Error('Cannot complete participation: participation is not active');
-    }
+    const participation = this.getWritableParticipation(state, participationId, 'complete participation');
     const completedAt = this.now();
     Object.assign(participation, {
       ...progress,
@@ -227,10 +238,7 @@ export class Vs1SessionRepository {
 
   submitTaskResponse(input: SubmitResponseInput): Vs1TaskResponse {
     const state = this.read();
-    const participation = state.participations.find(item => item.id === input.participationId);
-    if (!participation || participation.status !== 'active') {
-      throw new Error('Cannot submit response: participation is not active');
-    }
+    const participation = this.getWritableParticipation(state, input.participationId, 'submit response');
     const key = this.versions.getAnswerKeys(participation.routeVersionId).find(item =>
       item.stationId === input.stationId && item.taskId === input.taskId
     );

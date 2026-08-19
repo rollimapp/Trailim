@@ -121,3 +121,47 @@ test('participant-facing state never exposes protected AnswerKeys', () => {
   assert.equal(JSON.stringify(state).includes('correctOptionIds'), false);
   assert.equal(JSON.stringify(state.snapshot).includes('isCorrect'), false);
 });
+
+test('learning and challenge sessions for the same user and version remain separate', () => {
+  const harness = createHarness();
+  const learningSession = harness.createSession();
+  const challengeSession = harness.repository.createSession({
+    routeId: harness.version.routeId,
+    routeVersionId: harness.version.id,
+    organizationId: harness.version.organizationId,
+    createdByUserId: 'teacher-1',
+    title: 'Challenge Session',
+    mode: 'challenge',
+  });
+  const learningParticipation = harness.repository.joinSession(learningSession.id, 'participant-1');
+  const challengeParticipation = harness.repository.joinSession(challengeSession.id, 'participant-1');
+
+  assert.equal(
+    harness.repository.findActiveParticipation(harness.version.id, 'participant-1', 'learning')!.participation.id,
+    learningParticipation.id,
+  );
+  assert.equal(
+    harness.repository.findActiveParticipation(harness.version.id, 'participant-1', 'challenge')!.participation.id,
+    challengeParticipation.id,
+  );
+  assert.notEqual(learningParticipation.id, challengeParticipation.id);
+});
+
+test('completed or cancelled parent sessions reject participant writes', () => {
+  for (const status of ['completed', 'cancelled'] as const) {
+    const harness = createHarness();
+    const session = harness.createSession();
+    const participation = harness.repository.joinSession(session.id, 'participant-1');
+    harness.repository.updateSessionStatus(session.id, status);
+
+    assert.throws(() => harness.repository.updateProgress(participation.id, {
+      currentStationId: 'station-1', completedStationIds: [], progressPercentage: 0, score: 0,
+    }), /parent session is not active/);
+    assert.throws(() => harness.repository.submitTaskResponse({
+      participationId: participation.id, stationId: 'station-1', taskId: 'task-1', answer: 'a',
+    }), /parent session is not active/);
+    assert.throws(() => harness.repository.completeParticipation(participation.id, {
+      currentStationId: 'station-1', completedStationIds: ['station-1'], progressPercentage: 100, score: 10,
+    }), /parent session is not active/);
+  }
+});

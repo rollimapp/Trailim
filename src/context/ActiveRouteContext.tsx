@@ -72,7 +72,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setActiveParticipationId(null);
 
     if (workflowRoute && approvedVersionId && versionedSnapshot) {
-      const resumed = vs1SessionRepository.findActiveParticipation(approvedVersionId, currentUser.id);
+      const resumed = vs1SessionRepository.findActiveParticipation(approvedVersionId, currentUser.id, mode);
       const session = resumed?.session || vs1SessionRepository.createSession({
         routeId: workflowRoute.id,
         routeVersionId: approvedVersionId,
@@ -101,7 +101,6 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ].filter(Boolean)));
       setActiveSessionId(session.id);
       setActiveParticipationId(participation.id);
-      setSelectedMode(session.mode);
       setCurrentStationIndex(currentIndex);
       setCompletedStationIds(participation.completedStationIds);
       setUnlockedStationIds(restoredUnlocked);

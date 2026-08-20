@@ -7,11 +7,12 @@ service cloud.firestore {
     }
 
     function membershipPath(organizationId, userId) {
-      return /databases/$(database)/documents/organizations/$(organizationId)/memberships/$(userId);
+      return /databases/$(database)/documents/organizations/$(organizationId)/memberships/$(userId == null ? 'anonymous' : userId);
     }
 
     function isActiveMember(organizationId) {
       return signedIn()
+        && request.auth.uid != null
         && exists(membershipPath(organizationId, request.auth.uid))
         && get(membershipPath(organizationId, request.auth.uid)).data.userId == request.auth.uid
         && get(membershipPath(organizationId, request.auth.uid)).data.organizationId == organizationId
@@ -20,6 +21,7 @@ service cloud.firestore {
 
     function isTeacher(organizationId) {
       return isActiveMember(organizationId)
+        && request.auth.uid != null
         && get(membershipPath(organizationId, request.auth.uid)).data.role == 'teacher';
     }
 

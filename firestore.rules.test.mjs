@@ -561,3 +561,20 @@ test('ordinary clients cannot forge response evaluation or write score', async (
   }));
   await assertFails(updateDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a'), { score: 999 }));
 });
+
+test('reading draft or draft station on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('creator-a').firestore();
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'drafts', 'draft-a')));
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'drafts', 'draft-a', 'stations', 'station-1')));
+});
+
+test('reading version or version station on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('student-a').firestore();
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'versions', 'version-1')));
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'versions', 'version-1', 'stations', 'station-1')));
+});
+
+test('reading reviews on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('teacher-a').firestore();
+  await assertFails(getDoc(doc(db, 'reviews', 'review-non-existent')));
+});

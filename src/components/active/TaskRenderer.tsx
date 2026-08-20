@@ -21,11 +21,28 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
   );
   const [evidenceUrl, setEvidenceUrl] = useState<string>(existingResponse?.evidenceUrl || '');
   const [showHint, setShowHint] = useState(false);
-  const [feedbackResult, setFeedbackResult] = useState<{ isCorrect?: boolean; feedback?: string } | null>(
-    existingResponse ? { isCorrect: existingResponse.isCorrect, feedback: existingResponse.feedback } : null
+  const [feedbackResult, setFeedbackResult] = useState<{ isCorrect?: boolean; feedback?: string; status?: string } | null>(
+    existingResponse ? { isCorrect: existingResponse.isCorrect, feedback: existingResponse.feedback, status: existingResponse.status } : null
   );
 
-  const isCompletedOrLocked = existingResponse && (existingResponse.isCorrect === true || task.allowRetry === false);
+  React.useEffect(() => {
+    if (existingResponse) {
+      if (typeof existingResponse.answer === 'string') {
+        setSelectedOption(existingResponse.answer);
+        setTextInput(existingResponse.answer);
+      }
+      if (existingResponse.evidenceUrl) {
+        setEvidenceUrl(existingResponse.evidenceUrl);
+      }
+      setFeedbackResult({
+        isCorrect: existingResponse.isCorrect,
+        feedback: existingResponse.feedback,
+        status: existingResponse.status,
+      });
+    }
+  }, [existingResponse]);
+
+  const isCompletedOrLocked = !!existingResponse && (existingResponse.isCorrect === true || existingResponse.isCorrect === undefined || task.allowRetry === false);
 
   const handleSubmitChoice = async (optionId: string) => {
     setSelectedOption(optionId);
@@ -93,18 +110,22 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
                 disabled={!!isCompletedOrLocked}
                 className={`w-full p-3 rounded-xl text-left text-xs font-semibold border transition-all flex items-center justify-between ${
                   isSelected
-                    ? feedbackResult?.isCorrect === false
-                      ? 'bg-rose-50 border-rose-400 text-rose-950'
-                      : 'bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs'
+                    ? feedbackResult?.isCorrect === true
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs'
+                      : feedbackResult?.isCorrect === false
+                        ? 'bg-rose-50 border-rose-400 text-rose-950'
+                        : 'bg-slate-100 border-slate-400 text-slate-900 shadow-xs'
                     : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
                 }`}
               >
                 <span>{opt.text}</span>
                 {isSelected && (
-                  feedbackResult?.isCorrect === false ? (
+                  feedbackResult?.isCorrect === true ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : feedbackResult?.isCorrect === false ? (
                     <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                   ) : (
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <HelpCircle className="w-4 h-4 text-slate-500 shrink-0" />
                   )
                 )}
               </button>
@@ -173,19 +194,33 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({ task }) => {
       {/* Feedback Alert Result */}
       {feedbackResult && (
         <div className={`p-3 rounded-xl border text-xs ${
-          feedbackResult.isCorrect === false
-            ? 'bg-rose-50 border-rose-200 text-rose-900'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          feedbackResult.isCorrect === true
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            : feedbackResult.isCorrect === false
+              ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : 'bg-slate-50 border-slate-200 text-slate-900'
         }`}>
           <div className="font-bold flex items-center gap-1.5 mb-0.5">
-            {feedbackResult.isCorrect === false ? (
+            {feedbackResult.isCorrect === true ? (
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+            ) : feedbackResult.isCorrect === false ? (
               <XCircle className="w-4 h-4 text-rose-600" />
             ) : (
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <HelpCircle className="w-4 h-4 text-slate-500" />
             )}
-            <span>{feedbackResult.isCorrect ? 'Task Completed!' : 'Incorrect Attempt'}</span>
+            <span>
+              {feedbackResult.isCorrect === true
+                ? 'Task Completed!'
+                : feedbackResult.isCorrect === false
+                  ? 'Incorrect Attempt'
+                  : feedbackResult.status === 'pending_review'
+                    ? 'Pending review'
+                    : 'Response submitted'}
+            </span>
           </div>
-          <p className="text-[11px] text-slate-700">{feedbackResult.feedback}</p>
+          {feedbackResult.feedback && (
+            <p className="text-[11px] text-slate-700 mt-1">{feedbackResult.feedback}</p>
+          )}
         </div>
       )}
 

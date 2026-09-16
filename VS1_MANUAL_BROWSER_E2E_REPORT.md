@@ -134,6 +134,15 @@ During E2E manual and Playwright validation runs, the following bugs were found 
 * **Symptom**: Reaching 100% route progress updated client-side station arrays but left `Participation.status` as `'active'`, which blocked the participant from ever reading `/privateEvaluation/record` under Firestore rules for `after_route` tasks upon finishing the route. Direct client writes to `Participation.status` or `completedAt` are rightly denied by security rules.
 * **Fix**: Implemented trusted `completeParticipation(sessionId, progress, userId)` Cloud Function with transaction validation (caller owns participation, participation active, session writable, exact session/version binding preserved, validates `completedStationIds` against bound RouteVersion, progress = 100%, status = `completed`, `completedAt` server timestamp, score server-authoritative and unchanged, idempotent on repetition). Updated `ActiveRouteContext.tsx` on final station completion to invoke `completeParticipation` and reload responses via `listOwnResponses`, successfully unlocking `after_route` private evaluations.
 
+### 8. Completion Consistency & Server Score Authority
+* **Symptom**: `ActiveRouteContext.nextStation()` previously set `isCompleted = true`, triggered confetti, and persisted a completed record to local `dataService` with a 100/200 client bonus before the trusted `completeParticipation` Cloud Function succeeded. If the network or callable failed, this left a false completed state and created score divergence between client and server.
+* **Fix**: In Firebase mode:
+  1. `setIsCompleted(true)` is strictly gated on the successful resolution of `await completeParticipation(...)`.
+  2. Local `dataService.saveProgress` is bypassed completely to eliminate competing client-side sources of truth.
+  3. No client-side completion bonus is calculated or added; the server-authoritative score is preserved untouched.
+  4. On callable failure, the active route state remains active, completion UI is suppressed, and retryability is preserved.
+  5. Local non-Firebase fallback mode retains its standalone completion and storage behavior.
+
 ---
 
 ## 11. Verification & Build Results

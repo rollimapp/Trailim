@@ -117,10 +117,24 @@ export class FirestoreSessionParticipationRepository {
     return list;
   }
 
-  async findActiveParticipation(routeVersionId: string, participantUserId: string, mode: string): Promise<{ session: Vs1RouteSession; participation: Participation } | null> {
+  async listActiveSessions(organizationId: string, routeVersionId: string, mode: string): Promise<Vs1RouteSession[]> {
     const { firestore } = getFirebaseServices();
+    const snapshot = await getDocs(query(
+      collection(firestore, 'routeSessions'),
+      where('organizationId', '==', organizationId),
+      where('routeVersionId', '==', routeVersionId),
+      where('mode', '==', mode),
+      where('status', 'in', ['open', 'active'])
+    ));
+    return snapshot.docs.map(sessionFromSnapshot);
+  }
+
+  async findActiveParticipation(routeVersionId: string, participantUserId: string, mode: string, organizationId?: string): Promise<{ session: Vs1RouteSession; participation: Participation } | null> {
+    const { firestore } = getFirebaseServices();
+    const orgId = organizationId || 'org-edu-1';
     const sessionsQuery = query(
       collection(firestore, 'routeSessions'),
+      where('organizationId', '==', orgId),
       where('routeVersionId', '==', routeVersionId),
       where('mode', '==', mode)
     );

@@ -51,7 +51,9 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
     creatorDisplayName: currentUser.name,
     creatorRole: currentUser.role,
     schoolId: currentUser.schoolId,
+    organizationId: currentUser.organizationId || 'org-edu-1',
     schoolName: currentUser.schoolName,
+    creatorTeamId: 'team-market-storytellers',
     isTeamProject: true,
     teamInfo: {
       teamName: 'Market Storytellers',
@@ -145,7 +147,9 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
               { id: 'o2', text: '1905', isCorrect: false },
               { id: 'o3', text: '1920', isCorrect: false }
             ],
-            required: true
+            required: true,
+            allowRetry: true,
+            attemptLimit: 3
           }
         ],
         possiblePoints: 50,
@@ -277,6 +281,8 @@ export const RouteBuilderContainer: React.FC<RouteBuilderContainerProps> = ({
                   hint: t.hint,
                   answerRevealPolicy: t.answerRevealPolicy,
                   correctAnswers: initialRouteStations.find(s => s.id === ds.id)?.tasks.find(tk => tk.id === t.id)?.correctAnswers,
+                  allowRetry: initialRouteStations.find(s => s.id === ds.id)?.tasks.find(tk => tk.id === t.id)?.allowRetry,
+                  attemptLimit: initialRouteStations.find(s => s.id === ds.id)?.tasks.find(tk => tk.id === t.id)?.attemptLimit,
                 })),
                 possiblePoints: ds.tasks.reduce((acc, t) => acc + (t.displayPoints || 0), 0),
                 estimatedTimeMinutes: ds.estimatedTimeMinutes,

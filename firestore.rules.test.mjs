@@ -561,3 +561,89 @@ test('ordinary clients cannot forge response evaluation or write score', async (
   }));
   await assertFails(updateDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a'), { score: 999 }));
 });
+
+test('reading draft or draft station on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('creator-a').firestore();
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'drafts', 'draft-a')));
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'drafts', 'draft-a', 'stations', 'station-1')));
+});
+
+test('reading version or version station on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('student-a').firestore();
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'versions', 'version-1')));
+  await assertFails(getDoc(doc(db, 'routes', 'non-existent', 'versions', 'version-1', 'stations', 'station-1')));
+});
+
+test('reading reviews on a non-existent route fails safely', async () => {
+  const db = environment.authenticatedContext('teacher-a').firestore();
+  await assertFails(getDoc(doc(db, 'reviews', 'review-non-existent')));
+});
+
+test('privateEvaluation access control: denied before completion, allowed for after_route after completion, never remains denied, teacher allowed', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    const basePath = ['routeSessions', 'session-1', 'participations', 'student-a', 'responses'];
+    await setDoc(doc(db, ...basePath, 'response-after'), {
+      id: 'response-after', participationId: 'session-1_student-a', sessionId: 'session-1',
+      routeId: 'route-a', routeVersionId: 'version-1', stationId: 'station-1', taskId: 'task-after',
+      submittedAt: new Date('2026-01-03T00:00:00.000Z'), updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+      evaluationStatus: 'evaluated', attemptCount: 1, revealPolicy: 'after_route',
+    });
+    await setDoc(doc(db, ...basePath, 'response-after', 'privateEvaluation', 'record'), {
+      id: 'record', revealPolicy: 'after_route', evaluationStatus: 'evaluated',
+      isCorrect: true, pointsAwarded: 10,
+    });
+    await setDoc(doc(db, ...basePath, 'response-never'), {
+      id: 'response-never', participationId: 'session-1_student-a', sessionId: 'session-1',
+      routeId: 'route-a', routeVersionId: 'version-1', stationId: 'station-1', taskId: 'task-never',
+      submittedAt: new Date('2026-01-03T00:00:00.000Z'), updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+      evaluationStatus: 'evaluated', attemptCount: 1, revealPolicy: 'never',
+    });
+    await setDoc(doc(db, ...basePath, 'response-never', 'privateEvaluation', 'record'), {
+      id: 'record', revealPolicy: 'never', evaluationStatus: 'evaluated',
+      isCorrect: true, pointsAwarded: 10,
+    });
+  });
+
+  const studentDb = environment.authenticatedContext('student-a').firestore();
+  const teacherDb = environment.authenticatedContext('teacher-a').firestore();
+  const otherStudentDb = environment.authenticatedContext('creator-a').firestore();
+
+  const afterPrivRef = doc(studentDb, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-after', 'privateEvaluation', 'record');
+  const neverPrivRef = doc(studentDb, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-never', 'privateEvaluation', 'record');
+
+  // 1. Before completion (participation is active):
+  // student cannot read after_route privateEvaluation
+  await assertFails(getDoc(afterPrivRef));
+  // student cannot read never privateEvaluation
+  await assertFails(getDoc(neverPrivRef));
+
+  // 2. Teacher can read both even before completion
+  const teacherAfterRef = doc(teacherDb, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-after', 'privateEvaluation', 'record');
+  const teacherNeverRef = doc(teacherDb, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-never', 'privateEvaluation', 'record');
+  await assertSucceeds(getDoc(teacherAfterRef));
+  await assertSucceeds(getDoc(teacherNeverRef));
+
+  // 3. Mark participation as completed
+  await environment.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await updateDoc(doc(db, 'routeSessions', 'session-1', 'participations', 'student-a'), {
+      status: 'completed',
+      progressPercentage: 100,
+      completedAt: new Date('2026-01-03T01:00:00.000Z'),
+    });
+  });
+
+  // 4. After completion:
+  // student can read after_route privateEvaluation
+  await assertSucceeds(getDoc(afterPrivRef));
+  // student STILL cannot read never privateEvaluation
+  await assertFails(getDoc(neverPrivRef));
+
+  // 5. Another student cannot read student-a's privateEvaluation even after completion
+  const otherAfterRef = doc(otherStudentDb, 'routeSessions', 'session-1', 'participations', 'student-a', 'responses', 'response-after', 'privateEvaluation', 'record');
+  await assertFails(getDoc(otherAfterRef));
+
+  // 6. Direct client write to privateEvaluation is denied
+  await assertFails(setDoc(afterPrivRef, { forged: true }));
+});

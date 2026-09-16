@@ -221,6 +221,68 @@ export class SessionParticipationService {
     });
   }
 
+  async completeParticipation(sessionId: string, progress: { currentStationId?: string; completedStationIds: string[] }, userId: string) {
+    requireString(sessionId, 'sessionId');
+    if (!progress || !Array.isArray(progress.completedStationIds)) {
+      throw new WorkflowError('invalid-argument', 'Progress completedStationIds array is required');
+    }
+    const firestore = this.firestore;
+    return firestore.runTransaction(async transaction => {
+      const sessionRef = firestore.doc(`routeSessions/${sessionId}`);
+      const participationRef = sessionRef.collection('participations').doc(userId);
+      const sessionSnapshot = await transaction.get(sessionRef);
+      const participationSnapshot = await transaction.get(participationRef);
+      const session = sessionSnapshot.data();
+      const participation = participationSnapshot.data();
+      if (!sessionSnapshot.exists || !session || !writableSession(session)) {
+        throw new WorkflowError('failed-precondition', 'Parent session is terminal');
+      }
+      if (!participationSnapshot.exists || participation?.participantUserId !== userId) {
+        throw new WorkflowError('permission-denied', 'Owned participation is required');
+      }
+      if (participation.status === 'completed') {
+        return { participationId: participation.id, status: 'completed' };
+      }
+      if (participation.status !== 'active') {
+        throw new WorkflowError('failed-precondition', 'Participation is not active');
+      }
+      const versionSnapshot = await transaction.get(
+        firestore.doc(`routes/${session.routeId}/versions/${session.routeVersionId}`),
+      );
+      const version = versionSnapshot.data();
+      if (!versionSnapshot.exists || !version || version.id !== session.routeVersionId ||
+        version.routeId !== session.routeId || !Array.isArray(version.stationIds)) {
+        throw new WorkflowError('failed-precondition', 'Session RouteVersion identity is incoherent');
+      }
+      const stationIds = new Set<string>(version.stationIds);
+      if (stationIds.size !== version.stationIds.length) {
+        throw new WorkflowError('failed-precondition', 'RouteVersion station identity is incoherent');
+      }
+      if (new Set(progress.completedStationIds).size !== progress.completedStationIds.length) {
+        throw new WorkflowError('invalid-argument', 'Completed station IDs must be unique');
+      }
+      if (progress.completedStationIds.some(stationId => !stationIds.has(stationId))) {
+        throw new WorkflowError('invalid-argument', 'Completed station does not belong to the RouteVersion');
+      }
+      if (progress.currentStationId !== undefined && !stationIds.has(progress.currentStationId)) {
+        throw new WorkflowError('invalid-argument', 'Current station does not belong to the RouteVersion');
+      }
+      if (progress.completedStationIds.length !== stationIds.size) {
+        throw new WorkflowError('failed-precondition', 'All RouteVersion stations must be completed to complete participation');
+      }
+      const now = Timestamp.now();
+      transaction.update(participationRef, {
+        currentStationId: progress.currentStationId ?? null,
+        completedStationIds: progress.completedStationIds,
+        progressPercentage: 100,
+        status: 'completed',
+        completedAt: now,
+        updatedAt: now,
+      });
+      return { participationId: participation.id, status: 'completed' };
+    });
+  }
+
   async abandonParticipation(sessionId: string, userId: string) {
     const firestore = this.firestore;
     return firestore.runTransaction(async transaction => {

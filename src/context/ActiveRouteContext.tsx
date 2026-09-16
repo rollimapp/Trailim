@@ -26,9 +26,9 @@ interface ActiveRouteContextType {
   unlockedStationIds: string[];
   startRoute: (route: Route, mode: ExperienceMode, teamName?: string) => void;
   goToStation: (index: number) => void;
-  nextStation: () => void;
-  prevStation: () => void;
-  submitTaskAnswer: (taskId: string, answer: string | string[], evidenceUrl?: string) => Promise<{ isCorrect?: boolean; pointsEarned: number; feedback?: string }>;
+  nextStation: () => void | Promise<void>;
+  prevStation: () => void | Promise<void>;
+  submitTaskAnswer: (taskId: string, answer: string | string[], evidenceUrl?: string) => Promise<{ isCorrect?: boolean; pointsEarned: number; feedback?: string; status?: string }>;
   unlockStationWithCode: (stationId: string, code: string) => boolean;
   exitRoute: () => void;
   resetProgress: () => void;
@@ -53,10 +53,43 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const activeSubmissionIdsRef = React.useRef<Record<string, string>>({});
   const submissionsInFlightRef = React.useRef<Record<string, boolean>>({});
+  const isCompletingRouteRef = React.useRef<boolean>(false);
+
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (isFirebaseConfigured()) {
+      return getFirebaseServices().auth.onAuthStateChanged(user => {
+        setFirebaseUser(user);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFirebaseConfigured() && !getFirebaseServices().auth.currentUser) {
+      return;
+    }
+
+    if (currentUser) {
+      const activeRouteId = localStorage.getItem('active_route_id');
+      const activeRouteMode = localStorage.getItem('active_route_mode') as ExperienceMode | null;
+      const activeTeamName = localStorage.getItem('active_route_team_name') || '';
+      if (activeRouteId && activeRouteMode && !activeRoute) {
+        const route = dataService.getRouteById(activeRouteId);
+        if (route) {
+          startRoute(route, activeRouteMode, activeTeamName);
+        }
+      }
+    }
+  }, [currentUser, firebaseUser]);
 
   const currentStation = activeStations[currentStationIndex] || null;
 
   const startRoute = (route: Route, mode: ExperienceMode, newTeamName: string = '') => {
+    localStorage.setItem('active_route_id', route.id);
+    localStorage.setItem('active_route_mode', mode);
+    localStorage.setItem('active_route_team_name', newTeamName);
+
     setActiveRoute(route);
     setSelectedMode(mode);
     setTeamName(newTeamName);
@@ -84,7 +117,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
               const stations = versionedPreview.stations;
               setActiveStations(stations);
               
-              let resumed = await firestoreSessionParticipationRepository.findActiveParticipation(approvedVersionId, currentUser.id, mode);
+              let resumed = await firestoreSessionParticipationRepository.findActiveParticipation(approvedVersionId, currentUser.id, mode, currentUser.organizationId);
               let session: Vs1RouteSession;
               let participation: Participation;
 
@@ -92,20 +125,28 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 session = resumed.session;
                 participation = resumed.participation;
               } else {
-                const createRes = await firebaseSessionParticipationGateway.createSession({
-                  routeId: workflowRoute.id,
-                  routeVersionId: approvedVersionId,
-                  title: `${workflowRoute.title} Session`,
-                  mode,
-                });
-                const sessionId = (createRes.data as any).sessionId;
-                const fetchedSession = await firestoreSessionParticipationRepository.getSession(sessionId);
-                if (!fetchedSession) throw new Error('Failed to fetch created session');
-                session = fetchedSession;
+                const activeSessions = await firestoreSessionParticipationRepository.listActiveSessions(currentUser.organizationId, approvedVersionId, mode);
+                const activeSession = activeSessions[0];
+                let sessionId: string;
+                if (activeSession) {
+                  sessionId = activeSession.id;
+                  session = activeSession;
+                } else {
+                  const createRes = await firebaseSessionParticipationGateway.createSession({
+                    routeId: workflowRoute.id,
+                    routeVersionId: approvedVersionId,
+                    title: `${workflowRoute.title} Session`,
+                    mode,
+                  });
+                  sessionId = (createRes.data as any).sessionId;
+                  const fetchedSession = await firestoreSessionParticipationRepository.getSession(sessionId);
+                  if (!fetchedSession) throw new Error('Failed to fetch created session');
+                  session = fetchedSession;
+                }
 
-                const joinRes = await firebaseSessionParticipationGateway.joinSession(session.id);
+                const joinRes = await firebaseSessionParticipationGateway.joinSession(sessionId);
                 const participationId = (joinRes.data as any).participationId;
-                const fetchedParticipation = await firestoreSessionParticipationRepository.getOwnParticipation(session.id, currentUser.id);
+                const fetchedParticipation = await firestoreSessionParticipationRepository.getOwnParticipation(sessionId, currentUser.id);
                 if (!fetchedParticipation) throw new Error('Failed to fetch participation');
                 participation = fetchedParticipation;
               }
@@ -124,6 +165,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
               const currentIndex = participation.currentStationId
                 ? Math.max(0, stations.findIndex(st => st.id === participation.currentStationId))
                 : 0;
+
               const restoredUnlocked = Array.from(new Set([
                 ...participation.completedStationIds,
                 stations[currentIndex]?.id,
@@ -242,7 +284,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const nextStation = () => {
+  const nextStation = async () => {
     if (!currentStation) return;
 
     const updatedCompleted = Array.from(new Set([...completedStationIds, currentStation.id]));
@@ -261,17 +303,15 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentStationIndex(nextIndex);
       if (activeParticipationId) {
         if (isFirebaseSessionParticipationEnabled()) {
-          (async () => {
-            try {
-              await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
-                currentStationId: nextSt.id,
-                completedStationIds: updatedCompleted,
-                progressPercentage: Math.round((updatedCompleted.length / activeStations.length) * 100),
-              });
-            } catch (err) {
-              console.error('Firebase progress update failed:', err);
-            }
-          })();
+          try {
+            await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
+              currentStationId: nextSt.id,
+              completedStationIds: updatedCompleted,
+              progressPercentage: Math.round((updatedCompleted.length / activeStations.length) * 100),
+            });
+          } catch (err) {
+            console.error('Firebase progress update failed:', err);
+          }
         } else {
           vs1SessionRepository.updateProgress(activeParticipationId, {
             currentStationId: nextSt.id,
@@ -282,24 +322,54 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
     } else {
-      setIsCompleted(true);
-      setUnlockedStationIds(updatedUnlocked);
-      setCompletedStationIds(updatedCompleted);
-      const finalScore = score + (selectedMode === 'challenge' ? 200 : 100);
-      if (activeParticipationId) {
-        if (isFirebaseSessionParticipationEnabled()) {
-          (async () => {
-            try {
-              await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
-                currentStationId: currentStation.id,
-                completedStationIds: updatedCompleted,
-                progressPercentage: 100,
-              });
-            } catch (err) {
-              console.error('Firebase progress update failed:', err);
-            }
-          })();
-        } else {
+      if (activeParticipationId && isFirebaseSessionParticipationEnabled()) {
+        if (isCompletingRouteRef.current) return;
+        isCompletingRouteRef.current = true;
+        try {
+          await firebaseSessionParticipationGateway.completeParticipation(activeSessionId!, {
+            currentStationId: currentStation.id,
+            completedStationIds: updatedCompleted,
+          });
+
+          const responses = await firestoreSessionParticipationRepository.listOwnResponses(activeSessionId!, currentUser.id);
+          const restoredResponses = Object.fromEntries(responses.map(response => [response.taskId, {
+            taskId: response.taskId,
+            stationId: response.stationId,
+            answer: response.answer,
+            isCorrect: response.isCorrect,
+            pointsEarned: response.pointsAwarded || 0,
+            submittedAt: response.submittedAt,
+            status: response.evaluationStatus === 'manual_review' ? 'pending_review' as const : 'approved' as const,
+            feedback: response.feedback,
+          }]));
+          setTaskResponses(restoredResponses);
+
+          setUnlockedStationIds(updatedUnlocked);
+          setCompletedStationIds(updatedCompleted);
+          setIsCompleted(true);
+
+          try {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          } catch (e) {}
+        } catch (err) {
+          console.error('Firebase complete participation failed:', err);
+          alert('Failed to complete route session: ' + (err as Error).message);
+          return;
+        } finally {
+          isCompletingRouteRef.current = false;
+        }
+      } else {
+        setIsCompleted(true);
+        setUnlockedStationIds(updatedUnlocked);
+        setCompletedStationIds(updatedCompleted);
+        const finalScore = score + (selectedMode === 'challenge' ? 200 : 100);
+        setScore(finalScore);
+
+        if (activeParticipationId) {
           vs1SessionRepository.completeParticipation(activeParticipationId, {
             currentStationId: currentStation.id,
             completedStationIds: updatedCompleted,
@@ -307,57 +377,55 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
             score: finalScore,
           });
         }
-      }
-      
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {}
 
-      if (activeRoute) {
-        dataService.saveProgress({
-          id: `prog-${Date.now()}`,
-          userId: currentUser.id,
-          userName: currentUser.name,
-          routeId: activeRoute.id,
-          mode: selectedMode,
-          teamName: teamName || undefined,
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          currentStationId: currentStation.id,
-          completedStationIds: updatedUnlocked,
-          score: finalScore,
-          progressPercentage: 100,
-          taskResponses,
-          earnedBadgeIds: ['badge-explorer-1'],
-          status: 'completed'
-        });
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch (e) {}
+
+        if (activeRoute) {
+          dataService.saveProgress({
+            id: `prog-${Date.now()}`,
+            userId: currentUser.id,
+            userName: currentUser.name,
+            routeId: activeRoute.id,
+            mode: selectedMode,
+            teamName: teamName || undefined,
+            startedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+            currentStationId: currentStation.id,
+            completedStationIds: updatedUnlocked,
+            score: finalScore,
+            progressPercentage: 100,
+            taskResponses,
+            earnedBadgeIds: ['badge-explorer-1'],
+            status: 'completed'
+          });
+        }
       }
     }
   };
 
-  const prevStation = () => {
+  const prevStation = async () => {
     if (currentStationIndex > 0) {
       const previousIndex = currentStationIndex - 1;
       setCurrentStationIndex(previousIndex);
       if (activeParticipationId) {
         if (isFirebaseSessionParticipationEnabled()) {
-          (async () => {
-            try {
-              await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
-                currentStationId: activeStations[previousIndex].id,
-                completedStationIds,
-                progressPercentage: activeStations.length
-                  ? Math.round((completedStationIds.length / activeStations.length) * 100)
-                  : 0,
-              });
-            } catch (err) {
-              console.error('Firebase progress update failed:', err);
-            }
-          })();
+          try {
+            await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
+              currentStationId: activeStations[previousIndex].id,
+              completedStationIds,
+              progressPercentage: activeStations.length
+                ? Math.round((completedStationIds.length / activeStations.length) * 100)
+                : 0,
+            });
+          } catch (err) {
+            console.error('Firebase progress update failed:', err);
+          }
         } else {
           vs1SessionRepository.updateProgress(activeParticipationId, {
             currentStationId: activeStations[previousIndex].id,
@@ -388,9 +456,10 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     const submissionId = activeSubmissionIdsRef.current[key];
 
-    let isCorrect: boolean | undefined = false;
+    let isCorrect: boolean | undefined;
     let pointsEarned = 0;
     let feedback = '';
+    let evaluationStatus: 'evaluated' | 'manual_review' = 'evaluated';
 
     if (activeParticipationId) {
       if (isFirebaseTaskResponseScoringEnabled()) {
@@ -406,9 +475,14 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
           const data = res.data as any;
           isCorrect = data.isCorrect;
           pointsEarned = data.pointsAwarded || 0;
-          feedback = data.evaluationStatus === 'manual_review'
+          evaluationStatus = data.evaluationStatus === 'manual_review' ? 'manual_review' : 'evaluated';
+          feedback = evaluationStatus === 'manual_review'
             ? 'Submission received for teacher review.'
-            : isCorrect === false ? 'Incorrect answer.' : 'Submission received!';
+            : isCorrect === false
+              ? 'Incorrect answer.'
+              : isCorrect === true
+                ? 'Correct answer!'
+                : 'Submission received!';
           
           setScore(data.score);
 
@@ -429,9 +503,14 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
         isCorrect = response.isCorrect;
         pointsEarned = response.pointsAwarded || 0;
-        feedback = response.evaluationStatus === 'manual_review'
+        evaluationStatus = response.evaluationStatus === 'manual_review' ? 'manual_review' : 'evaluated';
+        feedback = evaluationStatus === 'manual_review'
           ? 'Submission received for teacher review.'
-          : isCorrect === false ? 'Incorrect answer.' : 'Submission received!';
+          : isCorrect === false
+            ? 'Incorrect answer.'
+            : isCorrect === true
+              ? 'Correct answer!'
+              : 'Submission received!';
       }
     } else {
       if (task.type === 'multiple_choice' && task.options) {
@@ -444,12 +523,20 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isCorrect = task.correctAnswers.some(c => c.toLowerCase() === inputCode);
         pointsEarned = isCorrect ? task.points : 0;
         feedback = isCorrect ? 'Code unlocked successfully!' : 'Invalid access code. Please check the inscription or plaque.';
+      } else if (task.type === 'photo_upload') {
+        isCorrect = undefined;
+        pointsEarned = 0;
+        evaluationStatus = 'manual_review';
+        feedback = 'Photo evidence submitted for teacher review.';
       } else {
         isCorrect = true;
         pointsEarned = task.points;
         feedback = 'Submission received! Your response has been recorded.';
       }
     }
+
+    const isManualReview = evaluationStatus === 'manual_review';
+    const responseStatus: TaskResponse['status'] = isManualReview ? 'pending_review' : 'approved';
 
     const newResponse: TaskResponse = {
       taskId,
@@ -460,7 +547,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       evidenceUrl,
       submittedAt: new Date().toISOString(),
       feedback,
-      status: isCorrect === undefined ? 'pending_review' : 'approved'
+      status: responseStatus,
     };
 
     const previousPoints = taskResponses[taskId]?.pointsEarned || 0;
@@ -501,7 +588,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       delete activeSubmissionIdsRef.current[key];
     }
 
-    return { isCorrect, pointsEarned, feedback };
+    return { isCorrect, pointsEarned, feedback, status: responseStatus };
   };
 
   const unlockStationWithCode = (stationId: string, code: string): boolean => {
@@ -525,6 +612,10 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const exitRoute = () => {
+    localStorage.removeItem('active_route_id');
+    localStorage.removeItem('active_route_mode');
+    localStorage.removeItem('active_route_team_name');
+
     setActiveRoute(null);
     setActiveStations([]);
     setCurrentStationIndex(0);

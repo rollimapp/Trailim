@@ -29,6 +29,10 @@ export class FirebaseSessionParticipationGateway {
     return httpsCallable(getCallableFunctions(), 'updateParticipationProgress')({ sessionId, progress });
   }
 
+  async completeParticipation(sessionId: string, progress: { currentStationId?: string; completedStationIds: string[] }) {
+    return httpsCallable(getCallableFunctions(), 'completeParticipation')({ sessionId, progress });
+  }
+
   async abandonParticipation(sessionId: string) {
     return httpsCallable(getCallableFunctions(), 'abandonParticipation')({ sessionId });
   }

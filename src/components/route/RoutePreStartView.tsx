@@ -97,7 +97,7 @@ export const RoutePreStartView: React.FC<RoutePreStartViewProps> = ({
           <Info className="w-4 h-4 text-emerald-700" /> Learning Goals & Instructions
         </h3>
         <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4 leading-relaxed">
-          {route.learningObjectives.map((obj, i) => (
+          {(route.learningObjectives || []).map((obj, i) => (
             <li key={i}>{obj}</li>
           ))}
         </ul>
@@ -107,7 +107,7 @@ export const RoutePreStartView: React.FC<RoutePreStartViewProps> = ({
       <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
         <h3 className="font-bold text-xs uppercase text-slate-800 tracking-wider">Equipment & Preparation</h3>
         <div className="flex flex-wrap gap-1.5">
-          {route.requiredEquipment.map((eq, i) => (
+          {(route.requiredEquipment || []).map((eq, i) => (
             <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-xs font-semibold">
               ✓ {eq}
             </span>

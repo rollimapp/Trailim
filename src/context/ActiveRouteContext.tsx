@@ -28,7 +28,7 @@ interface ActiveRouteContextType {
   goToStation: (index: number) => void;
   nextStation: () => void;
   prevStation: () => void;
-  submitTaskAnswer: (taskId: string, answer: string | string[], evidenceUrl?: string) => Promise<{ isCorrect?: boolean; pointsEarned: number; feedback?: string }>;
+  submitTaskAnswer: (taskId: string, answer: string | string[], evidenceUrl?: string) => Promise<{ isCorrect?: boolean; pointsEarned: number; feedback?: string; status?: string }>;
   unlockStationWithCode: (stationId: string, code: string) => boolean;
   exitRoute: () => void;
   resetProgress: () => void;
@@ -331,13 +331,24 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (isFirebaseSessionParticipationEnabled()) {
           (async () => {
             try {
-              await firebaseSessionParticipationGateway.updateProgress(activeSessionId!, {
+              await firebaseSessionParticipationGateway.completeParticipation(activeSessionId!, {
                 currentStationId: currentStation.id,
                 completedStationIds: updatedCompleted,
-                progressPercentage: 100,
               });
+              const responses = await firestoreSessionParticipationRepository.listOwnResponses(activeSessionId!, currentUser.id);
+              const restoredResponses = Object.fromEntries(responses.map(response => [response.taskId, {
+                taskId: response.taskId,
+                stationId: response.stationId,
+                answer: response.answer,
+                isCorrect: response.isCorrect,
+                pointsEarned: response.pointsAwarded || 0,
+                submittedAt: response.submittedAt,
+                status: response.evaluationStatus === 'manual_review' ? 'pending_review' as const : 'approved' as const,
+                feedback: response.feedback,
+              }]));
+              setTaskResponses(restoredResponses);
             } catch (err) {
-              console.error('Firebase progress update failed:', err);
+              console.error('Firebase complete participation failed:', err);
             }
           })();
         } else {
@@ -429,9 +440,10 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     const submissionId = activeSubmissionIdsRef.current[key];
 
-    let isCorrect: boolean | undefined = false;
+    let isCorrect: boolean | undefined;
     let pointsEarned = 0;
     let feedback = '';
+    let evaluationStatus: 'evaluated' | 'manual_review' = 'evaluated';
 
     if (activeParticipationId) {
       if (isFirebaseTaskResponseScoringEnabled()) {
@@ -447,9 +459,14 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
           const data = res.data as any;
           isCorrect = data.isCorrect;
           pointsEarned = data.pointsAwarded || 0;
-          feedback = data.evaluationStatus === 'manual_review'
+          evaluationStatus = data.evaluationStatus === 'manual_review' ? 'manual_review' : 'evaluated';
+          feedback = evaluationStatus === 'manual_review'
             ? 'Submission received for teacher review.'
-            : isCorrect === false ? 'Incorrect answer.' : 'Submission received!';
+            : isCorrect === false
+              ? 'Incorrect answer.'
+              : isCorrect === true
+                ? 'Correct answer!'
+                : 'Submission received!';
           
           setScore(data.score);
 
@@ -470,9 +487,14 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
         isCorrect = response.isCorrect;
         pointsEarned = response.pointsAwarded || 0;
-        feedback = response.evaluationStatus === 'manual_review'
+        evaluationStatus = response.evaluationStatus === 'manual_review' ? 'manual_review' : 'evaluated';
+        feedback = evaluationStatus === 'manual_review'
           ? 'Submission received for teacher review.'
-          : isCorrect === false ? 'Incorrect answer.' : 'Submission received!';
+          : isCorrect === false
+            ? 'Incorrect answer.'
+            : isCorrect === true
+              ? 'Correct answer!'
+              : 'Submission received!';
       }
     } else {
       if (task.type === 'multiple_choice' && task.options) {
@@ -485,12 +507,20 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isCorrect = task.correctAnswers.some(c => c.toLowerCase() === inputCode);
         pointsEarned = isCorrect ? task.points : 0;
         feedback = isCorrect ? 'Code unlocked successfully!' : 'Invalid access code. Please check the inscription or plaque.';
+      } else if (task.type === 'photo_upload') {
+        isCorrect = undefined;
+        pointsEarned = 0;
+        evaluationStatus = 'manual_review';
+        feedback = 'Photo evidence submitted for teacher review.';
       } else {
         isCorrect = true;
         pointsEarned = task.points;
         feedback = 'Submission received! Your response has been recorded.';
       }
     }
+
+    const isManualReview = evaluationStatus === 'manual_review';
+    const responseStatus: TaskResponse['status'] = isManualReview ? 'pending_review' : 'approved';
 
     const newResponse: TaskResponse = {
       taskId,
@@ -501,7 +531,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       evidenceUrl,
       submittedAt: new Date().toISOString(),
       feedback,
-      status: isCorrect === undefined ? 'pending_review' : 'approved'
+      status: responseStatus,
     };
 
     const previousPoints = taskResponses[taskId]?.pointsEarned || 0;
@@ -542,7 +572,7 @@ export const ActiveRouteProvider: React.FC<{ children: React.ReactNode }> = ({ c
       delete activeSubmissionIdsRef.current[key];
     }
 
-    return { isCorrect, pointsEarned, feedback };
+    return { isCorrect, pointsEarned, feedback, status: responseStatus };
   };
 
   const unlockStationWithCode = (stationId: string, code: string): boolean => {

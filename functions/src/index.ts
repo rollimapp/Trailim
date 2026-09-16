@@ -82,6 +82,11 @@ export const updateParticipationProgress = onCall(async request => {
   catch (error) { return translateError(error); }
 });
 
+export const completeParticipation = onCall(async request => {
+  try { return await sessionService.completeParticipation(request.data.sessionId, request.data.progress, authenticatedUserId(request.auth)); }
+  catch (error) { return translateError(error); }
+});
+
 export const abandonParticipation = onCall(async request => {
   try { return await sessionService.abandonParticipation(request.data.sessionId, authenticatedUserId(request.auth)); }
   catch (error) { return translateError(error); }

@@ -568,3 +568,72 @@ test('retry limits - strict constraints on attemptLimit when retry is allowed', 
   assert.equal(replayR2.attemptCount, 2);
   assert.equal(replayR2.score, 6); // attemptCount is 2, score is still 6
 });
+
+test('completeParticipation - transitions status to completed, sets completedAt, preserves score, and enforces validation', async () => {
+  const sessionId = await joinedSession();
+
+  // Submit a task response first so the participant has points
+  const sub = await service.submitTaskResponse(sessionId, 'station-1', 'option-task', ['a'], 'student-a', 'comp-sub-1');
+  assert.equal(sub.score, 10);
+
+  // 1. Incomplete station list rejected
+  await assert.rejects(
+    service.completeParticipation(sessionId, { completedStationIds: ['station-1'] }, 'student-a'),
+    /All RouteVersion stations must be completed/
+  );
+
+  // 2. Unknown station rejected
+  await assert.rejects(
+    service.completeParticipation(sessionId, { completedStationIds: ['station-1', 'unknown'] }, 'student-a'),
+    /Completed station does not belong to the RouteVersion/
+  );
+
+  // 3. Duplicate stations rejected
+  await assert.rejects(
+    service.completeParticipation(sessionId, { completedStationIds: ['station-1', 'station-1'] }, 'student-a'),
+    /Completed station IDs must be unique/
+  );
+
+  // 4. Non-owner caller rejected
+  await assert.rejects(
+    service.completeParticipation(sessionId, { completedStationIds: ['station-1', 'station-2'] }, 'student-2'),
+    /Owned participation is required/
+  );
+
+  // 5. Successful completion
+  const res = await service.completeParticipation(sessionId, {
+    currentStationId: 'station-2',
+    completedStationIds: ['station-1', 'station-2'],
+  }, 'student-a');
+  assert.equal(res.status, 'completed');
+
+  const partDoc = (await firestore.doc(`routeSessions/${sessionId}/participations/student-a`).get()).data();
+  assert.equal(partDoc.status, 'completed');
+  assert.equal(partDoc.progressPercentage, 100);
+  assert.equal(partDoc.score, 10); // Score preserved and untouched
+  assert.ok(partDoc.completedAt instanceof Timestamp);
+  assert.equal(partDoc.routeVersionId, 'version-approved');
+  assert.deepEqual(partDoc.completedStationIds, ['station-1', 'station-2']);
+
+  // 6. Idempotency on repeated completion
+  const repeated = await service.completeParticipation(sessionId, {
+    completedStationIds: ['station-1', 'station-2'],
+  }, 'student-a');
+  assert.equal(repeated.status, 'completed');
+
+  // 7. Abandoned participation cannot be completed
+  const sess2 = await joinedSession();
+  await service.abandonParticipation(sess2, 'student-a');
+  await assert.rejects(
+    service.completeParticipation(sess2, { completedStationIds: ['station-1', 'station-2'] }, 'student-a'),
+    /Participation is not active/
+  );
+
+  // 8. Terminal session rejects completion
+  const sess3 = await joinedSession();
+  await service.updateRouteSessionStatus(sess3, 'cancelled', 'teacher-a');
+  await assert.rejects(
+    service.completeParticipation(sess3, { completedStationIds: ['station-1', 'station-2'] }, 'student-a'),
+    /Parent session is terminal/
+  );
+});

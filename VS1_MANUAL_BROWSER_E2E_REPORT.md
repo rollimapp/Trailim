@@ -55,7 +55,7 @@ This report documents the manual browser E2E validation of Vertical Slice 1 on t
 - **Join Session**: Logged in as `student-1` (participant) and joined the learning session, creating a `Participation` record under `routeSessions/{sessionId}/participations/{userId}`.
 - **Hard Refresh Resume**: Reloaded page mid-session. The active route state correctly resumed from the stored index.
 - **Deduplication**: Rejoining does not duplicate participation records under `routeSessions/{sessionId}/participations/{userId}`.
-- **Completion**: Completing the route updates progress and score values on the participation document.
+- **Completion**: Completing all stations on the route invokes the trusted `completeParticipation` Cloud Function. This sets `status: 'completed'`, `progressPercentage: 100`, and `completedAt: Timestamp` while strictly preserving the server-authoritative `score`. Once marked `completed`, participant reads to `/privateEvaluation/record` for `after_route` tasks become authorized under Firestore rules, and the UI reloads to reveal the evaluations, while `never` policy items remain permanently hidden.
 
 ---
 
@@ -63,7 +63,8 @@ This report documents the manual browser E2E validation of Vertical Slice 1 on t
 
 **Status: MANUALLY VERIFIED**
 - **Immediate Reveal Policy**: Correct option awards 10 points and sets `isCorrect: true` on the public response document. Incorrect awards 0. Retrying correct awards 8 points (subtracting 2 points penalty per attempt).
-- **After-Route Policy**: Answer submitted successfully and score updated, but correctness data (`isCorrect`, `feedback`, `pointsAwarded`) remains redacted from the public task response document. It is stored inside `/privateEvaluation/record` and is readable only after participation status becomes `completed`.
+- **Response Status Semantics**: Decoupled `isCorrect === undefined` from `status === 'pending_review'`. If the server evaluationStatus is `manual_review`, status is `'pending_review'` and the UI renders "Pending review". For hidden evaluation policies (`after_route`, `never`), status is treated as submitted/evaluated-hidden (`'approved'`) and the UI renders neutral "Response submitted" without leaking correctness.
+- **After-Route Policy**: Answer submitted successfully and score updated, but correctness data (`isCorrect`, `feedback`, `pointsAwarded`) remains redacted from the public task response document. It is stored inside `/privateEvaluation/record` and is readable only after participation status becomes `completed` via `completeParticipation`.
 - **Never Policy**: Correctness details remain redacted and hidden indefinitely.
 - **Submission-Only**: Submitting custom response text awards points instantly.
 - **Manual-Review**: Submitting evidence sets status to `manual_review` and awards 0 points initially. Shows a neutral "Pending review" alert card and locks input once submitted.
@@ -125,6 +126,14 @@ During E2E manual and Playwright validation runs, the following bugs were found 
 * **Symptom**: On active session load, task response state initialized to default/empty values before Firestore finished fetching responses, resulting in submitted answers, uploaded files, and feedback cards failing to display on refresh/resume.
 * **Fix**: Implemented a `React.useEffect` synchronizer hook in `TaskRenderer.tsx` that updates the active option selectors, text inputs, upload links, and feedback alert cards immediately once response data is successfully loaded from Firestore.
 
+### 6. Response Status Semantics Decoupling
+* **Symptom**: The frontend inferred `isCorrect === undefined` as `pending_review`. This conflated tasks awaiting teacher review with evaluated tasks whose results were hidden under `after_route` or `never` policies.
+* **Fix**: Updated `ActiveRouteContext.tsx` and `TaskRenderer.tsx` to use explicit `evaluationStatus` from the server. Only `manual_review` produces `status = 'pending_review'` with a "Pending review" UI; hidden policies produce `status = 'approved'` with a neutral "Response submitted" label and zero correctness leakage.
+
+### 7. Trusted Callable Participation Completion (`completeParticipation`)
+* **Symptom**: Reaching 100% route progress updated client-side station arrays but left `Participation.status` as `'active'`, which blocked the participant from ever reading `/privateEvaluation/record` under Firestore rules for `after_route` tasks upon finishing the route. Direct client writes to `Participation.status` or `completedAt` are rightly denied by security rules.
+* **Fix**: Implemented trusted `completeParticipation(sessionId, progress, userId)` Cloud Function with transaction validation (caller owns participation, participation active, session writable, exact session/version binding preserved, validates `completedStationIds` against bound RouteVersion, progress = 100%, status = `completed`, `completedAt` server timestamp, score server-authoritative and unchanged, idempotent on repetition). Updated `ActiveRouteContext.tsx` on final station completion to invoke `completeParticipation` and reload responses via `listOwnResponses`, successfully unlocking `after_route` private evaluations.
+
 ---
 
 ## 11. Verification & Build Results
@@ -133,8 +142,8 @@ During E2E manual and Playwright validation runs, the following bugs were found 
 | :--- | :--- | :--- |
 | `npx.cmd tsc --noEmit` | TypeScript compiler check | **Pass** (0 compilation errors) |
 | `npm.cmd run build` | Vite production bundler | **Pass** (Built `dist/` successfully) |
-| `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; node --test firestore.rules.test.mjs` | Firestore Security Rules tests | **Pass** (41 of 41 unit tests passed) |
-| `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; $env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"; npm.cmd run test --prefix functions` | Cloud Functions workflow tests | **Pass** (30 of 30 unit tests passed) |
+| `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; node --test firestore.rules.test.mjs` | Firestore Security Rules tests | **Pass** (42 of 42 unit tests passed) |
+| `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; $env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"; npm.cmd run test --prefix functions` | Cloud Functions workflow tests | **Pass** (31 of 31 unit tests passed) |
 | `npx.cmd playwright test vs1-browser.spec.js --timeout 90000` | Playwright Browser E2E suite | **Pass** (2 of 2 tests passed) |
 
 ---

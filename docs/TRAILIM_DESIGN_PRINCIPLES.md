@@ -235,3 +235,21 @@ For teachers, show the same journey as progress and review status.
 For students, show it as a guided sequence of tasks.
 
 Avoid turning dashboard decoration into a stepper unless the steps are truly the workflow.
+
+
+## Student stage visibility and unlock rule
+
+For guided student projects:
+
+- Only the **completed stage(s)** and the **current active stage** should be prominent.
+- Future locked stages should **not** all appear as full cards. This creates unnecessary cognitive load.
+- Future stages should be summarized in one compact **"What comes next?"** disclosure.
+- The disclosure may reveal a minimal list of upcoming stage names/requirements, but future stage content remains locked.
+- A future stage must not become interactive until the current stage's required conditions are satisfied and, where configured, teacher approval is complete.
+- This is both a UX rule and a workflow rule. UI gating alone is not sufficient for production; persistence/workflow logic must enforce it when the real Project model is wired.
+
+Visual direction:
+- completed = compact
+- current = expanded and actionable
+- future = collapsed / secondary
+- reduce rounded card nesting; prefer editorial dividers, continuous surfaces, and one active work surface.

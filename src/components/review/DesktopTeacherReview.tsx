@@ -223,8 +223,31 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
         </div>
       </header>
 
-      <main className="max-w-[1450px] mx-auto p-6 space-y-5">
-        <section className="relative overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
+      <main className="relative max-w-[1450px] mx-auto p-6 space-y-5">
+        <div className="pointer-events-none absolute inset-x-6 top-[150px] bottom-10 z-0 overflow-hidden" aria-hidden="true">
+          <svg viewBox="0 0 1400 760" preserveAspectRatio="none" className="w-full h-full opacity-[0.24]">
+            <path
+              d="M1320 70
+                 C1210 95, 1180 150, 1060 170
+                 C930 192, 900 250, 770 265
+                 C635 280, 610 360, 500 385
+                 C390 410, 350 500, 245 525
+                 C165 545, 140 625, 95 690"
+              fill="none"
+              stroke="#2f7a62"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeDasharray="8 11"
+            />
+            <circle cx="1320" cy="70" r="5.5" fill="#2f7a62" />
+            <circle cx="1060" cy="170" r="5.5" fill="#2f7a62" />
+            <circle cx="770" cy="265" r="5.5" fill="#2f7a62" />
+            <circle cx="500" cy="385" r="5.5" fill="#2f7a62" />
+            <circle cx="245" cy="525" r="5.5" fill="#2f7a62" />
+            <circle cx="95" cy="690" r="5.5" fill="#2f7a62" />
+          </svg>
+        </div>
+        <section className="relative z-10 overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
           <img
             src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80"
             alt=""
@@ -254,9 +277,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
           </div>
         </section>
 
-        <section className="relative flex items-center gap-2 pb-1">
-          <div className="absolute -bottom-2 right-3 left-3 h-px bg-[#ded9cf]" />
-          <div className="absolute -bottom-[5px] right-3 w-2.5 h-2.5 rounded-full bg-[#1f6d54]" />
+        <section className="relative z-10 flex items-center gap-2 pb-1">
           {([
             ['pending', 'ממתין לבדיקה', queue.length],
             ['changes', 'הוחזר לתיקון', 0],
@@ -277,7 +298,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
         </section>
 
         {filter === 'pending' ? (
-          <section className={`grid gap-5 items-start ${visibleQueue.length === 1 ? 'grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-[minmax(0,1fr)_340px]'}`}>
+          <section className={`relative z-10 grid gap-5 items-start ${visibleQueue.length === 1 ? 'grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-[minmax(0,1fr)_340px]'}`}>
             <div className="bg-white rounded-[20px] border border-[#e5e0d7] shadow-[0_12px_28px_-24px_rgba(35,50,43,.45)] overflow-hidden">
               <div className="px-5 py-4 border-b border-[#eee9e1] flex items-center justify-between">
                 <div>
@@ -389,7 +410,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
             </aside>
           </section>
         ) : (
-          <section className="rounded-[20px] border border-[#e5e0d7] bg-white p-12 text-center">
+          <section className="relative z-10 rounded-[20px] border border-[#e5e0d7] bg-white p-12 text-center">
             <CheckCircle2 className="w-10 h-10 text-[#5aa988] mx-auto" />
             <h3 className="font-black mt-3">האזור הזה יתחבר להיסטוריית הבדיקות</h3>
             <p className="text-sm text-[#7c888f] mt-1">כרגע ה־MVP מחבר את זרימת העבודות שממתינות לבדיקה.</p>

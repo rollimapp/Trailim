@@ -235,3 +235,38 @@ For the pilot:
 ### Important note on the official booklet
 
 The AI-assisted booklet describes the tour/activity twice in its numbered stages (tour execution and later activity execution/scoring). Trailim normalizes this into one chronological flow: **choose topic → research → plan activity/stations → one field tour (verify + run + document) → analyze/reflect/report → present/publish** while preserving the official assessment requirements.
+
+
+## Long-form student writing UX
+
+Do not use the rubric itself as the primary writing surface.
+
+For longer responses (for example: half a page explaining concepts, a source review, analysis, or reflection):
+- show a dedicated document-like writing area in the active stage;
+- keep the instruction and requirement visible above or beside it;
+- show live progress such as word/character count and completion status;
+- autosave continuously;
+- allow expanding the editor to a distraction-reduced writing view;
+- keep rubric/checklist criteria as guidance beside the editor, not as the editor itself;
+- preserve structured fields underneath so report generation can map content reliably.
+
+Short answers may use compact fields/cards. Long-form writing should feel like a small document editor, not a form made of tiny boxes.
+
+## Template strategy
+
+Trailim should support **both curated templates and an open builder**.
+
+1. Curated templates provide fast starts for common use cases, for example:
+   - Ministry social-sciences educational tour / alternative assessment;
+   - neighborhood street/history trail;
+   - memorial/monument investigation;
+   - local heritage route;
+   - ecology/environment field inquiry.
+
+2. Teacher builder lets teachers:
+   - start from a template and customize it;
+   - duplicate an existing project/template;
+   - build a project from scratch by adding/removing/reordering stages;
+   - configure instructions, required fields, counts, text-length rules, media, approvals, rubric, report mappings, and publish settings.
+
+The core product is not a catalog of fixed assignment types. Templates are reusable presets over the same configurable ProjectTemplate model.

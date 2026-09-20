@@ -474,7 +474,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                 </div>
               </div>
             </div>
-          )}          )}
+          )}
         </main>
 
         <aside className="border-r border-slate-200 bg-white min-h-0 overflow-y-auto">

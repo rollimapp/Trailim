@@ -10,6 +10,7 @@ import {
   Clock3,
   FileText,
   MapPinned,
+  Maximize2,
   MessageSquareText,
   MoreHorizontal,
   Plus,
@@ -46,47 +47,40 @@ const stages: ProjectStage[] = [
     title: 'בחירת נושא',
     description: 'בחרו נושא, מושג או תיאוריה מתוך תחום הדעת וחברו אותו למקום או לתופעה שתרצו לחקור.',
     status: 'done',
-    requirement: 'נושא ייחודי + אישור מורה',
+    requirement: 'נושא ייחודי + נימוק קצר + אישור מורה',
   },
   {
     id: 'research',
     title: 'חקר מקדים',
-    description: 'אספו לפחות שני מקורות אמינים ובנו סקירה מקדימה של חמישה מושגים או תיאוריות שיילוו אתכם לאורך הסיור.',
+    description: 'אספו מקורות אמינים, סכמו אותם והסבירו את המושגים או התיאוריות שילוו אתכם בסיור.',
     status: 'active',
     requirement: '2 מקורות לפחות + 5 מושגים/תיאוריות + אישור מורה',
   },
   {
     id: 'plan',
-    title: 'תכנון הפעילות והתחנות',
+    title: 'תכנון פעילות ותחנות',
     description: 'תכננו מה המשתתפים יעשו בסיור ואיך כל תחנה תחבר בין המקום, המושגים והפעילות.',
     status: 'locked',
-    requirement: 'פעילות מאושרת + תכנון 2–3 תחנות',
+    requirement: 'פעילות מאושרת + 2–3 תחנות',
   },
   {
     id: 'field',
-    title: 'סיור ובדיקת שטח',
-    description: 'צאו לשטח, בדקו את המקומות והתחנות, בצעו את הפעילות ותעדו תצפיות וממצאים מהחוויה.',
+    title: 'סיור בשטח',
+    description: 'צאו לסיור, ודאו שהתחנות עובדות, הפעילו את המשימות ותעדו תצפיות וממצאים.',
     status: 'locked',
-    requirement: 'ביצוע סיור + תצפיות/ממצאים + פעילות',
+    requirement: 'ביצוע הפעילות + תיעוד ממצאים',
   },
   {
-    id: 'analysis',
-    title: 'ניתוח וכתיבת הדוח',
-    description: 'הדגימו את חמשת המושגים דרך מה שראיתם בסיור וחברו בין התיאוריה לבין המציאות שחוויתם.',
+    id: 'report',
+    title: 'ניתוח, רפלקציה ודוח',
+    description: 'חברו בין חמשת המושגים למה שחוויתם בשטח, השלימו רפלקציה אישית וצרו טיוטת עבודה.',
     status: 'locked',
-    requirement: 'יישום 5 מושגים + ניתוח + טיוטת דוח',
-  },
-  {
-    id: 'reflection',
-    title: 'רפלקציה אישית',
-    description: 'כל תלמיד ותלמידה כותבים רפלקציה אישית על החוויה, עבודת הצוות, הלמידה והשימוש ב-AI.',
-    status: 'locked',
-    requirement: 'רפלקציה אישית לכל תלמיד',
+    requirement: 'ניתוח 5 מושגים + רפלקציה + טיוטת עבודה',
   },
   {
     id: 'present',
     title: 'הצגה ופרסום',
-    description: 'הציגו את התוצר, ענו על שאלות, וקבלו אישור סופי לפרסום המסלול.',
+    description: 'הציגו את התוצר, ענו על שאלות וקבלו אישור סופי לפרסום המסלול.',
     status: 'locked',
     requirement: 'הצגה + אישור מורה + מסלול מוכן לפרסום',
   },
@@ -107,7 +101,7 @@ const teams: ProjectTeam[] = [
     name: 'קבוצה 2',
     members: 'יעל • עומר • רועי',
     topic: 'ג׳נטריפיקציה ושינוי חברתי',
-    stage: 'בניית תחנות',
+    stage: 'תכנון פעילות ותחנות',
     status: 'working',
     progress: 58,
   },
@@ -116,7 +110,7 @@ const teams: ProjectTeam[] = [
     name: 'קבוצה 3',
     members: 'אורי',
     topic: 'שייכות ומרחב ציבורי',
-    stage: 'הגשה ומשוב',
+    stage: 'ניתוח, רפלקציה ודוח',
     status: 'revision',
     progress: 76,
   },
@@ -125,7 +119,7 @@ const teams: ProjectTeam[] = [
     name: 'קבוצה 4',
     members: 'שירה • יהונתן',
     topic: 'קהילות מוצא ומסורת',
-    stage: 'הגשה ומשוב',
+    stage: 'ניתוח, רפלקציה ודוח',
     status: 'approved',
     progress: 100,
   },
@@ -156,9 +150,13 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFutureStages, setShowFutureStages] = useState(false);
   const [showCompletedStage, setShowCompletedStage] = useState(false);
+  const [researchText, setResearchText] = useState(
+    'זהות קהילתית מתארת את האופן שבו אדם מגדיר את עצמו כחלק מקבוצה או קהילה. במקרה של נחלאות, הזהות נבנית דרך מסורות, מוסדות מקומיים, קשרי שכנות והמרחב הפיזי עצמו.\n\nקהילה היא רשת של קשרים חברתיים בין אנשים החולקים מקום, מאפיינים או תחושת שייכות. נרצה לבדוק כיצד הקשרים האלה באים לידי ביטוי ברחוב ובמפגש בין תושבים ותיקים לחדשים.'
+  );
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
   const selectedStage = stages.find((stage) => stage.id === selectedStageId) ?? stages[1];
+  const researchWordCount = researchText.trim() ? researchText.trim().split(/\s+/).length : 0;
 
   const visibleTeams = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -324,7 +322,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                     </p>
                   </div>
                   <div className="text-left shrink-0">
-                    <div className="text-[12px] font-bold text-slate-500">שלב 2 מתוך 7</div>
+                    <div className="text-[12px] font-bold text-slate-500">שלב 2 מתוך 6</div>
                     <div className="text-[13px] text-[#2b755d] mt-1">חקר מקדים</div>
                   </div>
                 </div>
@@ -408,49 +406,99 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                       </div>
                     </div>
 
-                    <div className="border-t border-[#ece5d6] grid grid-cols-2">
-                      <div className="p-6 border-l border-[#ece5d6]">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-[#2b755d]" />
-                              <h4 className="text-sm font-black">מקורות</h4>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-1">לפחות שני מקורות אמינים, עם סיכום קצר של מה למדתם מכל מקור.</p>
+                    <div className="border-t border-[#ece5d6]">
+                      <div className="px-6 py-4 bg-[#faf8f1] border-b border-[#ece5d6] flex items-center justify-between gap-6">
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-400">דרישת המורה</div>
+                          <p className="text-sm font-black mt-1">סקירה של 5 מושגים/תיאוריות • כ־250–350 מילים בסך הכול</p>
+                          <p className="text-xs text-slate-500 mt-1">כתבו במילים שלכם. הטקסט הזה ייכנס אחר כך אוטומטית לרקע התאורטי בעבודה.</p>
+                        </div>
+                        <div className="text-left shrink-0">
+                          <div className="text-[11px] text-slate-400">התקדמות בכתיבה</div>
+                          <div className={`text-sm font-black mt-1 ${researchWordCount >= 250 ? 'text-[#1f6d54]' : 'text-[#9b6a11]'}`}>
+                            {researchWordCount} / 250 מילים
                           </div>
-                          <strong className="text-xs text-[#1f6d54]">1 / 2</strong>
                         </div>
-
-                        <div className="mt-5 border-y border-[#e7e2d9] py-3">
-                          <p className="text-sm font-bold">שינויים חברתיים בשכונות מרכז העיר</p>
-                          <p className="text-xs text-slate-400 mt-1">מקור 1 • נוסף היום</p>
-                        </div>
-
-                        <button className="mt-3 text-xs font-black text-[#1f6d54] flex items-center gap-1.5">
-                          <Plus className="w-4 h-4" /> הוספת מקור
-                        </button>
                       </div>
 
-                      <div className="p-6">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-[#2b755d]" />
-                              <h4 className="text-sm font-black">מושגים ותיאוריות</h4>
+                      <div className="grid grid-cols-[minmax(0,1fr)_245px] min-h-[430px]">
+                        <div className="p-6 bg-white">
+                          <div className="flex items-center justify-between gap-4 mb-3">
+                            <div>
+                              <h4 className="text-sm font-black">הסקירה שלכם</h4>
+                              <p className="text-xs text-slate-500 mt-1">אפשר לכתוב ברצף כמו במסמך. אין צורך למלא קופסה נפרדת לכל מושג.</p>
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">בחרו חמישה מושגים או תיאוריות והסבירו כל אחד במילים שלכם.</p>
+                            <button className="h-8 px-3 border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 hover:bg-slate-50">
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              מסך כתיבה
+                            </button>
                           </div>
-                          <strong className="text-xs text-[#9b6a11]">3 / 5</strong>
+
+                          <textarea
+                            value={researchText}
+                            onChange={(event) => setResearchText(event.target.value)}
+                            className="w-full min-h-[315px] resize-none bg-transparent border-0 outline-none text-[15px] leading-8 text-slate-800 placeholder:text-slate-300"
+                            placeholder="התחילו לכתוב כאן את הסקירה התאורטית שלכם..."
+                          />
+
+                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>נשמר אוטומטית</span>
+                            <span>{researchWordCount} מילים</span>
+                          </div>
                         </div>
 
-                        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-3 text-sm">
-                          {['זהות', 'קהילה', 'נורמות'].map((concept) => (
-                            <span key={concept} className="border-b border-[#b7c8c1] pb-1 font-bold text-slate-700">
-                              {concept}
-                            </span>
-                          ))}
-                          <button className="text-xs font-black text-[#1f6d54]">+ הוספת מושג</button>
-                        </div>
+                        <aside className="border-r border-[#ece5d6] bg-[#fcfbf7] p-5">
+                          <div className="mb-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-[#2b755d]" />
+                                <h4 className="text-sm font-black">מקורות</h4>
+                              </div>
+                              <strong className="text-xs text-[#1f6d54]">1 / 2</strong>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2 leading-5">לכל מקור שומרים גם פרטים וגם כמה משפטים על מה למדתם ממנו.</p>
+
+                            <div className="mt-4 border-y border-[#e7e2d9] py-3">
+                              <p className="text-xs font-bold leading-5">שינויים חברתיים בשכונות מרכז העיר</p>
+                              <p className="text-[11px] text-slate-400 mt-1">מקור 1 • נוסף היום</p>
+                            </div>
+
+                            <button className="mt-3 text-xs font-black text-[#1f6d54] flex items-center gap-1.5">
+                              <Plus className="w-4 h-4" /> הוספת מקור
+                            </button>
+                          </div>
+
+                          <div className="pt-5 border-t border-[#e7e2d9]">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-[#2b755d]" />
+                                <h4 className="text-sm font-black">מושגים</h4>
+                              </div>
+                              <strong className="text-xs text-[#9b6a11]">3 / 5</strong>
+                            </div>
+
+                            <div className="mt-4 space-y-2 text-xs">
+                              {['זהות', 'קהילה', 'נורמות'].map((concept) => (
+                                <div key={concept} className="flex items-center justify-between border-b border-[#ece8df] pb-2">
+                                  <span className="font-bold text-slate-700">{concept}</span>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1f6d54]" />
+                                </div>
+                              ))}
+                            </div>
+
+                            <button className="mt-3 text-xs font-black text-[#1f6d54]">+ הוספת מושג</button>
+                          </div>
+
+                          <div className="mt-6 pt-5 border-t border-[#e7e2d9]">
+                            <p className="text-[11px] font-bold text-slate-400 mb-3">לפני שליחה למורה</p>
+                            <div className="space-y-2.5 text-xs">
+                              <div className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-[#1f6d54] shrink-0" /><span>הסברתם 3 מתוך 5 מושגים</span></div>
+                              <div className="flex items-start gap-2"><Clock3 className="w-4 h-4 text-amber-600 shrink-0" /><span>חסר מקור אחד</span></div>
+                              <div className="flex items-start gap-2"><Clock3 className="w-4 h-4 text-amber-600 shrink-0" /><span>חסרים 2 מושגים</span></div>
+                              <div className="flex items-start gap-2"><Clock3 className="w-4 h-4 text-amber-600 shrink-0" /><span>נדרשות לפחות 250 מילים</span></div>
+                            </div>
+                          </div>
+                        </aside>
                       </div>
                     </div>
 
@@ -481,7 +529,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                         <div className="text-[11px] font-bold text-slate-400">נעול כרגע</div>
                         <h3 className="text-[17px] font-black mt-1">מה בהמשך?</h3>
                         <p className="text-sm text-slate-500 mt-1">
-                          עוד 5 תחנות ייפתחו בהדרגה אחרי השלמת החקר המקדים.
+                          עוד 4 שלבים ייפתחו בהדרגה אחרי השלמת החקר המקדים.
                         </p>
                       </div>
                       <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showFutureStages ? 'rotate-180' : ''}`} />

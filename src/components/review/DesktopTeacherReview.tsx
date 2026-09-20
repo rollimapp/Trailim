@@ -275,9 +275,9 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
         </section>
 
         {filter === 'pending' ? (
-          <section dir="ltr" className="relative z-10 grid grid-cols-[320px_86px_minmax(0,1fr)] gap-0 items-start">
+          <section dir="ltr" className="relative z-10 grid grid-cols-[320px_96px_minmax(0,1fr)] gap-0 items-start">
             <aside dir="rtl" className="space-y-4">
-              <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
+              <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5 translate-y-1">
                 <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
                 <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />
                 <Sparkles size={19} className="text-[#2b755d]" />
@@ -287,7 +287,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                 </p>
               </div>
 
-              <div className="rounded-[18px] border border-[#e5e0d7] bg-white p-5">
+              <div className="rounded-[18px] border border-[#e5e0d7] bg-white p-5 -translate-y-1">
                 <h3 className="font-black">מה חשוב לבדוק?</h3>
                 <div className="mt-4 space-y-3 text-sm text-[#5f6c75]">
                   <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם התוכן ברור ומבוסס?</div>
@@ -297,25 +297,39 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
               </div>
             </aside>
 
-            <div dir="rtl" className="relative self-stretch min-h-[430px]">
-              <div className="absolute top-3 bottom-3 left-1/2 -translate-x-1/2 w-px bg-[#bdd3ca]" />
-              {[
-                ['ממתין', 'top-[18px]'],
-                ['פתיחה', 'top-[122px]'],
-                ['משוב', 'top-[260px]'],
-                ['החלטה', 'bottom-[18px]'],
-              ].map(([label, pos], i) => (
-                <div key={label} className={`absolute ${pos} left-1/2 -translate-x-1/2 flex flex-col items-center gap-2`}>
-                  <div className={`w-4 h-4 rounded-full border-[3px] border-[#f5f3ee] shadow-sm ${i === 0 ? 'bg-[#1f6d54]' : 'bg-[#8fb9a9]'}`} />
-                  <span className="text-[10px] font-bold text-[#6a7d75] whitespace-nowrap bg-[#f5f3ee] px-1.5">{label}</span>
-                </div>
-              ))}
+            <div className="relative self-stretch min-h-[430px] overflow-visible" aria-hidden="true">
+              <svg
+                viewBox="0 0 180 540"
+                preserveAspectRatio="none"
+                className="absolute -top-[82px] -bottom-4 left-1/2 -translate-x-1/2 w-[180px] h-[calc(100%+100px)] overflow-visible pointer-events-none"
+              >
+                {/* one quiet editorial route that lives in the gutter and gently breaks the card edges */}
+                <path
+                  d="M98 0
+                     C104 72, 60 92, 72 152
+                     C82 205, 122 218, 112 278
+                     C102 338, 58 350, 68 416
+                     C76 466, 104 486, 92 540"
+                  fill="none"
+                  stroke="#5b9a84"
+                  strokeWidth="2.25"
+                  strokeLinecap="round"
+                  strokeDasharray="7 11"
+                  opacity="0.38"
+                />
+                {/* subtle cross-card gestures */}
+                <path d="M73 154 C48 154, 28 150, 8 142" fill="none" stroke="#5b9a84" strokeWidth="1.7" strokeLinecap="round" opacity="0.26" />
+                <path d="M112 278 C136 278, 153 270, 172 258" fill="none" stroke="#5b9a84" strokeWidth="1.7" strokeLinecap="round" opacity="0.26" />
+                <path d="M69 416 C44 418, 26 428, 6 438" fill="none" stroke="#5b9a84" strokeWidth="1.7" strokeLinecap="round" opacity="0.24" />
+
+                <circle cx="98" cy="38" r="6.5" fill="#1f6d54" stroke="#f5f3ee" strokeWidth="4" />
+                <circle cx="72" cy="154" r="5.5" fill="#77ad99" stroke="#f5f3ee" strokeWidth="4" />
+                <circle cx="112" cy="278" r="5.5" fill="#77ad99" stroke="#f5f3ee" strokeWidth="4" />
+                <circle cx="68" cy="416" r="5.5" fill="#77ad99" stroke="#f5f3ee" strokeWidth="4" />
+              </svg>
             </div>
 
             <div dir="rtl" className="relative bg-white rounded-[20px] border border-[#e5e0d7] shadow-[0_12px_28px_-24px_rgba(35,50,43,.45)] overflow-visible">
-              <div className="absolute -right-[51px] top-[105px] z-20 w-7 h-7 rounded-full bg-[#f5f3ee] border border-[#a8c9bb] grid place-items-center shadow-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#1f6d54]" />
-              </div>
               <div className="overflow-hidden rounded-[20px]">
               <div className="px-5 py-4 border-b border-[#eee9e1] flex items-center justify-between">
                 <div>

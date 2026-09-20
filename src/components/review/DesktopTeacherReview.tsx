@@ -403,6 +403,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                   ))
                 )}
               </div>
+              </div>
             </div>
           </section>
         ) : (

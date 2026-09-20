@@ -89,7 +89,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
           creatorId: review.submittedByUserId,
           creatorName: review.submittedByUserId === 'student-1' ? 'Maya Lin' : 'Elena Vance',
           creatorRole: review.submittedByUserId === 'student-1' ? 'student' as const : 'teacher' as const,
-          schoolName: route?.schoolName || 'בית הספר',
+          schoolName: 'בית הספר',
           subject: version?.content.subject || '',
           stationCount: version?.stationIds.length || 0,
           submittedAt: review.submittedAt,

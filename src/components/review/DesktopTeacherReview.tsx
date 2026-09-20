@@ -8,7 +8,6 @@ import {
   FileText,
   MessageSquareText,
   Search,
-  Send,
   Sparkles,
   Users,
   X,
@@ -34,6 +33,12 @@ const demoImages = [
   'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80',
 ];
+
+const displayName = (name: string) =>
+  name === 'Maya Lin' ? 'מאיה לין' : name === 'Elena Vance' ? 'אלנה ונס' : name;
+
+const displaySchool = (school?: string) =>
+  school === 'Greenwood High School' ? 'תיכון גרינווד' : school || '';
 
 export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBack, onPreviewRoute }) => {
   const { currentUser } = useAuth();
@@ -219,29 +224,39 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
       </header>
 
       <main className="max-w-[1450px] mx-auto p-6 space-y-5">
-        <section className="relative overflow-hidden rounded-[22px] border border-black/5 min-h-[172px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
+        <section className="relative overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
           <img
             src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80"
             alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-35"
+            className="absolute inset-0 w-full h-full object-cover opacity-30"
           />
-          <div className="absolute inset-0 bg-gradient-to-l from-[#12382f]/95 via-[#17483a]/72 to-[#173f35]/25" />
+          <div className="absolute inset-0 bg-gradient-to-l from-[#12382f]/96 via-[#17483a]/78 to-[#173f35]/35" />
+          <div className="absolute left-10 top-8 h-[86px] w-[260px] opacity-40 pointer-events-none">
+            <svg viewBox="0 0 260 86" className="w-full h-full">
+              <path d="M8 66 C58 16, 96 84, 146 40 S220 20, 252 52" fill="none" stroke="white" strokeWidth="2" strokeDasharray="5 8" />
+              <circle cx="10" cy="66" r="5" fill="white" />
+              <circle cx="146" cy="40" r="5" fill="white" />
+              <circle cx="251" cy="52" r="5" fill="white" />
+            </svg>
+          </div>
           <div className="relative p-7 flex items-center justify-between gap-8">
             <div>
               <div className="text-[12px] font-bold text-[#bfe9d6] mb-2">TRAILIM למורים</div>
-              <h2 className="text-[32px] font-black">כל מה שמחכה לך במקום אחד</h2>
+              <h2 className="text-[30px] font-black">עבודות שמחכות לבדיקה</h2>
               <p className="text-white/80 mt-2 max-w-2xl leading-7">
-                עוברים עבודה־עבודה, נותנים משוב קצר ומחליטים אם לאשר או להחזיר לתיקון.
+                פותחים עבודה אחת, בודקים את מה שהתלמידים הגישו, מוסיפים משוב ומחליטים אם לאשר או להחזיר לתיקון.
               </p>
             </div>
-            <div className="shrink-0 rounded-[18px] bg-white/10 border border-white/15 px-6 py-5 min-w-[220px]">
-              <div className="text-[38px] font-black leading-none">{queue.length}</div>
+            <div className="shrink-0 rounded-[18px] bg-white/10 border border-white/15 px-6 py-4 min-w-[205px] backdrop-blur-[1px]">
+              <div className="text-[36px] font-black leading-none">{queue.length}</div>
               <div className="text-sm text-white/80 mt-2">ממתינות לבדיקה עכשיו</div>
             </div>
           </div>
         </section>
 
-        <section className="flex items-center gap-2">
+        <section className="relative flex items-center gap-2 pb-1">
+          <div className="absolute -bottom-2 right-3 left-3 h-px bg-[#ded9cf]" />
+          <div className="absolute -bottom-[5px] right-3 w-2.5 h-2.5 rounded-full bg-[#1f6d54]" />
           {([
             ['pending', 'ממתין לבדיקה', queue.length],
             ['changes', 'הוחזר לתיקון', 0],
@@ -262,7 +277,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
         </section>
 
         {filter === 'pending' ? (
-          <section className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+          <section className={`grid gap-5 items-start ${visibleQueue.length === 1 ? 'grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-[minmax(0,1fr)_340px]'}`}>
             <div className="bg-white rounded-[20px] border border-[#e5e0d7] shadow-[0_12px_28px_-24px_rgba(35,50,43,.45)] overflow-hidden">
               <div className="px-5 py-4 border-b border-[#eee9e1] flex items-center justify-between">
                 <div>
@@ -272,13 +287,50 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                 <Clock3 size={20} className="text-[#62717a]" />
               </div>
 
-              <div className="divide-y divide-[#eee9e1]">
+              <div className={visibleQueue.length === 1 ? 'p-5' : 'divide-y divide-[#eee9e1]'}>
                 {visibleQueue.length === 0 ? (
                   <div className="px-6 py-14 text-center">
                     <CheckCircle2 className="w-10 h-10 text-[#54a886] mx-auto" />
                     <h4 className="font-black mt-3">אין כרגע עבודות שמחכות לבדיקה</h4>
                     <p className="text-sm text-[#7e8a96] mt-1">כשתלמידים יגישו עבודה, היא תופיע כאן.</p>
                   </div>
+                ) : visibleQueue.length === 1 ? (
+                  (() => {
+                    const item = visibleQueue[0];
+                    return (
+                      <button
+                        onClick={() => setSelectedReview(item)}
+                        className="group w-full text-right overflow-hidden rounded-[18px] border border-[#e3ddd3] bg-[#fcfbf8] hover:border-[#c9d8d1] hover:shadow-[0_14px_30px_-24px_rgba(31,109,84,.55)] transition"
+                      >
+                        <div className="grid grid-cols-[240px_minmax(0,1fr)] min-h-[180px]">
+                          <div className="relative overflow-hidden">
+                            <img src={demoImages[0]} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                            <span className="absolute top-4 right-4 text-[11px] font-bold bg-[#fff1d7] text-[#9a6113] rounded-full px-2.5 py-1">
+                              ממתין לבדיקה
+                            </span>
+                          </div>
+                          <div className="p-6 flex items-center gap-5">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11px] text-[#9aa4ab]">{new Date(item.submittedAt).toLocaleDateString('he-IL')}</div>
+                              <h4 className="text-[21px] font-black mt-2">{item.routeTitle}</h4>
+                              <p className="text-sm text-[#6f7d86] mt-2">
+                                {displayName(item.creatorName)}{item.schoolName ? ` • ${displaySchool(item.schoolName)}` : ''}
+                              </p>
+                              <div className="flex items-center gap-5 mt-4 text-xs text-[#89949b]">
+                                <span className="flex items-center gap-1.5"><Users size={14} /> הגשת תלמידים</span>
+                                <span className="flex items-center gap-1.5"><FileText size={14} /> {item.stationCount} תחנות</span>
+                              </div>
+                            </div>
+                            <span className="shrink-0 inline-flex items-center gap-2 rounded-[12px] bg-[#1f6d54] text-white px-5 py-3 text-sm font-black">
+                              פתח לבדיקה
+                              <ArrowRight size={16} className="rotate-180" />
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })()
                 ) : (
                   visibleQueue.map((item, index) => (
                     <button
@@ -296,7 +348,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                         </div>
                         <h4 className="text-[16px] font-black mt-2 truncate">{item.routeTitle}</h4>
                         <p className="text-sm text-[#6f7d86] mt-1">
-                          {item.creatorName}{item.schoolName ? ` • ${item.schoolName}` : ''}
+                          {displayName(item.creatorName)}{item.schoolName ? ` • ${displaySchool(item.schoolName)}` : ''}
                         </p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-[#89949b]">
                           <span className="flex items-center gap-1"><Users size={14} /> הגשת תלמידים</span>
@@ -316,15 +368,17 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
             </div>
 
             <aside className="space-y-4">
-              <div className="rounded-[19px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
+              <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
+                <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
+                <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />
                 <Sparkles size={19} className="text-[#2b755d]" />
                 <h3 className="font-black mt-3">בדיקה פשוטה, לא עוד מערכת</h3>
-                <p className="text-sm text-[#64716b] leading-6 mt-2">
-                  פתח עבודה אחת, ראה מה התלמידים הגישו, כתוב משוב קצר וסיים בהחלטה אחת.
+                <p className="text-sm text-[#64716b] leading-6 mt-2 max-w-[250px]">
+                  פתח עבודה אחת, ראה מה הוגש, כתוב משוב קצר וסיים בהחלטה אחת.
                 </p>
               </div>
 
-              <div className="rounded-[19px] border border-[#e5e0d7] bg-white p-5">
+              <div className="rounded-[18px] border border-[#e5e0d7] bg-white p-5">
                 <h3 className="font-black">מה חשוב לבדוק?</h3>
                 <div className="mt-4 space-y-3 text-sm text-[#5f6c75]">
                   <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם התוכן ברור ומבוסס?</div>
@@ -366,7 +420,7 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <h4 className="text-[20px] font-black">{selectedReview.routeTitle}</h4>
-                      <p className="text-sm text-[#738089] mt-1">{selectedReview.creatorName}</p>
+                      <p className="text-sm text-[#738089] mt-1">{displayName(selectedReview.creatorName)}</p>
                     </div>
                     <button
                       onClick={() => handlePreviewTrail(selectedReview)}
@@ -377,24 +431,15 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                     </button>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    <div className="rounded-[14px] bg-[#f1f5f3] p-4">
-                      <div className="text-[12px] text-[#7b878e]">תחנות</div>
-                      <div className="text-[22px] font-black mt-1">{selectedReview.stationCount}</div>
-                    </div>
-                    <div className="rounded-[14px] bg-[#f7f1e6] p-4">
-                      <div className="text-[12px] text-[#7b878e]">סטטוס</div>
-                      <div className="text-sm font-black mt-2">ממתין לבדיקה</div>
-                    </div>
-                    <div className="rounded-[14px] bg-[#eef3f8] p-4">
-                      <div className="text-[12px] text-[#7b878e]">הוגש</div>
-                      <div className="text-sm font-black mt-2">{new Date(selectedReview.submittedAt).toLocaleDateString('he-IL')}</div>
-                    </div>
+                  <div className="mt-6 border-y border-[#e7e2d9] py-4 flex items-center gap-8 text-sm">
+                    <div><span className="text-[#8a969d]">תחנות</span><strong className="mr-2">{selectedReview.stationCount}</strong></div>
+                    <div><span className="text-[#8a969d]">סטטוס</span><strong className="mr-2">ממתין לבדיקה</strong></div>
+                    <div><span className="text-[#8a969d]">הוגש</span><strong className="mr-2">{new Date(selectedReview.submittedAt).toLocaleDateString('he-IL')}</strong></div>
                   </div>
 
-                  <div className="mt-6 rounded-[16px] border border-[#e7e2d9] bg-white p-5">
+                  <div className="mt-6">
                     <h5 className="font-black">תקציר להגשה</h5>
-                    <p className="text-sm leading-7 text-[#65727b] mt-2">
+                    <p className="text-sm leading-7 text-[#65727b] mt-2 max-w-2xl">
                       המסלול כולל את התחנות והחומרים שהוגשו בגרסה הנוכחית. אפשר לפתוח תצוגה מלאה לפני קבלת החלטה.
                     </p>
                   </div>

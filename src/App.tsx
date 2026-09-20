@@ -29,7 +29,7 @@ const MainContent: React.FC = () => {
   const [isBuildingRoute, setIsBuildingRoute] = useState<boolean>(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [analyticsRoute, setAnalyticsRoute] = useState<Route | null>(null);
-  const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<'home' | 'project'>('home');
+  const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<'home' | 'project' | 'review'>('home');
 
   const showStandardNav = !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
   const showDesktopProjectWorkspace = activeTab === 'create' && !activeRoute && !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
@@ -40,7 +40,7 @@ const MainContent: React.FC = () => {
         <div className="hidden lg:block h-full w-full bg-[#F7F7F4]">
           {desktopWorkspaceView === 'home' ? (
             <TeacherHomeVisualProof
-              onReview={() => setActiveTab('review_queue')}
+              onReview={() => setDesktopWorkspaceView('review')}
               onOpenProject={() => setDesktopWorkspaceView('project')}
               onCreateProject={() => {
                 setEditingRoute(null);
@@ -51,8 +51,29 @@ const MainContent: React.FC = () => {
                 setActiveTab('explore');
               }}
             />
+          ) : desktopWorkspaceView === 'project' ? (
+            <GuidedProjectWorkspace onBack={() => setDesktopWorkspaceView('home')} />
           ) : (
-            <GuidedProjectWorkspace />
+            <div className="h-full w-full bg-[#F7F7F4] flex flex-col">
+              <div className="h-14 px-5 border-b border-slate-200 bg-white flex items-center">
+                <button
+                  onClick={() => setDesktopWorkspaceView('home')}
+                  className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50"
+                >
+                  חזרה לדף הבית
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto p-6">
+                <div className="max-w-[1200px] mx-auto">
+                  <ReviewQueueView
+                    onPreviewRoute={(route, stations) => {
+                      setSelectedRouteStations(stations || null);
+                      setSelectedRouteForDetail(route);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

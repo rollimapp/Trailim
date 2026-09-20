@@ -224,27 +224,42 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
       </header>
 
       <main className="relative max-w-[1450px] mx-auto p-6 space-y-5">
-        <div className="pointer-events-none absolute inset-x-6 top-[150px] bottom-10 z-0 overflow-hidden" aria-hidden="true">
-          <svg viewBox="0 0 1400 760" preserveAspectRatio="none" className="w-full h-full opacity-[0.24]">
+        <div className="pointer-events-none absolute inset-x-6 top-[160px] bottom-8 z-0 overflow-visible" aria-hidden="true">
+          <svg viewBox="0 0 1400 760" preserveAspectRatio="none" className="w-full h-full opacity-[0.28]">
+            {/* A deliberate "route spine" that travels through the whitespace, not through the cards */}
             <path
-              d="M1320 70
-                 C1210 95, 1180 150, 1060 170
-                 C930 192, 900 250, 770 265
-                 C635 280, 610 360, 500 385
-                 C390 410, 350 500, 245 525
-                 C165 545, 140 625, 95 690"
+              d="M1310 72
+                 C1270 88, 1240 108, 1210 132
+                 L1210 178
+                 C1210 208, 1185 226, 1145 226
+                 L1035 226
+                 C995 226, 972 250, 972 285
+                 L972 515
+                 C972 548, 948 568, 910 568
+                 L840 568"
               fill="none"
               stroke="#2f7a62"
-              strokeWidth="2.2"
+              strokeWidth="2.4"
               strokeLinecap="round"
-              strokeDasharray="8 11"
+              strokeLinejoin="round"
+              strokeDasharray="7 10"
             />
-            <circle cx="1320" cy="70" r="5.5" fill="#2f7a62" />
-            <circle cx="1060" cy="170" r="5.5" fill="#2f7a62" />
-            <circle cx="770" cy="265" r="5.5" fill="#2f7a62" />
-            <circle cx="500" cy="385" r="5.5" fill="#2f7a62" />
-            <circle cx="245" cy="525" r="5.5" fill="#2f7a62" />
-            <circle cx="95" cy="690" r="5.5" fill="#2f7a62" />
+            <circle cx="1310" cy="72" r="5.8" fill="#2f7a62" />
+            <circle cx="1210" cy="178" r="5.8" fill="#2f7a62" />
+            <circle cx="1035" cy="226" r="5.8" fill="#2f7a62" />
+            <circle cx="972" cy="365" r="5.8" fill="#2f7a62" />
+            <circle cx="972" cy="515" r="5.8" fill="#2f7a62" />
+            <circle cx="840" cy="568" r="5.8" fill="#2f7a62" />
+
+            {/* a second, very subtle contour echo to soften the geometry */}
+            <path
+              d="M1360 112 C1320 136, 1302 170, 1304 212"
+              fill="none"
+              stroke="#2f7a62"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              opacity="0.35"
+            />
           </svg>
         </div>
         <section className="relative z-10 overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
@@ -388,7 +403,11 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
               </div>
             </div>
 
-            <aside className="space-y-4">
+            <aside className="relative space-y-4">
+              <div className="hidden xl:flex absolute -top-9 right-1 items-center gap-2 text-[11px] font-bold text-[#5e756c]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2f7a62]" />
+                תחנת בדיקה
+              </div>
               <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
                 <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
                 <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />

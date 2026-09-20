@@ -15,7 +15,7 @@ import { MyActivityView } from './components/activity/MyActivityView';
 import { CommunityView } from './components/community/CommunityView';
 import { ProfileView } from './components/profile/ProfileView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
-import { GuidedProjectWorkspace } from './components/projects/GuidedProjectWorkspace';
+import { TeacherHomeVisualProof } from './components/projects/TeacherHomeVisualProof';
 import { Route, Station, ExperienceMode } from './types';
 
 const MainContent: React.FC = () => {
@@ -36,7 +36,7 @@ const MainContent: React.FC = () => {
     <div className="h-[100dvh] w-full bg-slate-900 text-[#1D242B] font-sans overflow-hidden">
       {showDesktopProjectWorkspace && (
         <div className="hidden lg:block h-full w-full bg-[#F7F7F4]">
-          <GuidedProjectWorkspace />
+          <TeacherHomeVisualProof />
         </div>
       )}
 

@@ -29,11 +29,19 @@ const MainContent: React.FC = () => {
   const [analyticsRoute, setAnalyticsRoute] = useState<Route | null>(null);
 
   const showStandardNav = !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
+  const showDesktopProjectWorkspace = activeTab === 'create' && !activeRoute && !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
 
   return (
-    <div className="h-[100dvh] w-full bg-slate-900 text-[#1D242B] font-sans flex items-center justify-center p-0 sm:py-6 sm:px-4 overflow-hidden">
-      {/* Mobile App Shell Frame */}
-      <div className="w-full sm:w-[410px] md:w-[430px] h-full sm:h-[860px] sm:max-h-[92vh] max-h-[100dvh] bg-[#FAF9F6] relative flex flex-col sm:rounded-[48px] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] sm:border-[10px] sm:border-slate-800 overflow-hidden">
+    <div className="h-[100dvh] w-full bg-slate-900 text-[#1D242B] font-sans overflow-hidden">
+      {showDesktopProjectWorkspace && (
+        <div className="hidden lg:block h-full w-full bg-[#F7F7F4]">
+          <GuidedProjectWorkspace />
+        </div>
+      )}
+
+      <div className={`${showDesktopProjectWorkspace ? 'lg:hidden' : 'flex'} h-full w-full items-center justify-center p-0 sm:py-6 sm:px-4`}>
+        {/* Existing mobile-first shell remains unchanged below desktop breakpoint. */}
+        <div className="w-full sm:w-[410px] md:w-[430px] h-full sm:h-[860px] sm:max-h-[92vh] max-h-[100dvh] bg-[#FAF9F6] relative flex flex-col sm:rounded-[48px] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] sm:border-[10px] sm:border-slate-800 overflow-hidden">
         
         {/* Hardware Notch / Camera Pill on Desktop */}
         <div className="hidden sm:flex absolute top-0 left-1/2 -translate-x-1/2 w-32 h-4 bg-slate-800 rounded-b-xl z-50 pointer-events-none items-center justify-center">
@@ -162,6 +170,7 @@ const MainContent: React.FC = () => {
           </div>
         )}
 
+        </div>
       </div>
     </div>
   );

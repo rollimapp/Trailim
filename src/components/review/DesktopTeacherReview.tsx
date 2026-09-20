@@ -224,33 +224,6 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
       </header>
 
       <main className="relative max-w-[1450px] mx-auto p-6 space-y-5">
-        <div className="pointer-events-none absolute z-0 top-[250px] bottom-[130px] right-[328px] w-[120px]" aria-hidden="true">
-          <svg viewBox="0 0 120 520" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-            <path
-              d="M62 8
-                 C62 58, 38 82, 38 126
-                 C38 170, 62 194, 62 238
-                 C62 282, 40 306, 40 350
-                 C40 398, 62 424, 62 486"
-              fill="none"
-              stroke="#2f7a62"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeDasharray="7 10"
-              opacity="0.38"
-            />
-            <circle cx="62" cy="18" r="6" fill="#2f7a62" opacity="0.8" />
-            <circle cx="38" cy="150" r="6" fill="#2f7a62" opacity="0.8" />
-            <circle cx="40" cy="370" r="6" fill="#2f7a62" opacity="0.8" />
-            <circle cx="62" cy="486" r="6" fill="#2f7a62" opacity="0.8" />
-          </svg>
-
-          <div className="absolute top-[3px] right-[78px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">ממתין לבדיקה</div>
-          <div className="absolute top-[128px] right-[60px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">פותחים עבודה</div>
-          <div className="absolute top-[348px] right-[62px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">משוב והחלטה</div>
-          <div className="absolute bottom-[-2px] right-[78px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">אישור או תיקון</div>
-        </div>
-
         <section className="relative z-10 overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
           <img
             src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80"
@@ -302,8 +275,48 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
         </section>
 
         {filter === 'pending' ? (
-          <section className={`relative z-10 grid gap-5 items-start ${visibleQueue.length === 1 ? 'grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-[minmax(0,1fr)_340px]'}`}>
-            <div className="bg-white rounded-[20px] border border-[#e5e0d7] shadow-[0_12px_28px_-24px_rgba(35,50,43,.45)] overflow-hidden">
+          <section dir="ltr" className="relative z-10 grid grid-cols-[320px_86px_minmax(0,1fr)] gap-0 items-start">
+            <aside dir="rtl" className="space-y-4">
+              <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
+                <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
+                <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />
+                <Sparkles size={19} className="text-[#2b755d]" />
+                <h3 className="font-black mt-3">בדיקה פשוטה, לא עוד מערכת</h3>
+                <p className="text-sm text-[#64716b] leading-6 mt-2 max-w-[250px]">
+                  פתח עבודה אחת, ראה מה הוגש, כתוב משוב קצר וסיים בהחלטה אחת.
+                </p>
+              </div>
+
+              <div className="rounded-[18px] border border-[#e5e0d7] bg-white p-5">
+                <h3 className="font-black">מה חשוב לבדוק?</h3>
+                <div className="mt-4 space-y-3 text-sm text-[#5f6c75]">
+                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם התוכן ברור ומבוסס?</div>
+                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם המקום והתחנות מתאימים?</div>
+                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם יש משהו שדורש תיקון לפני המשך?</div>
+                </div>
+              </div>
+            </aside>
+
+            <div dir="rtl" className="relative self-stretch min-h-[430px]">
+              <div className="absolute top-3 bottom-3 left-1/2 -translate-x-1/2 w-px bg-[#bdd3ca]" />
+              {[
+                ['ממתין', 'top-[18px]'],
+                ['פתיחה', 'top-[122px]'],
+                ['משוב', 'top-[260px]'],
+                ['החלטה', 'bottom-[18px]'],
+              ].map(([label, pos], i) => (
+                <div key={label} className={`absolute ${pos} left-1/2 -translate-x-1/2 flex flex-col items-center gap-2`}>
+                  <div className={`w-4 h-4 rounded-full border-[3px] border-[#f5f3ee] shadow-sm ${i === 0 ? 'bg-[#1f6d54]' : 'bg-[#8fb9a9]'}`} />
+                  <span className="text-[10px] font-bold text-[#6a7d75] whitespace-nowrap bg-[#f5f3ee] px-1.5">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div dir="rtl" className="relative bg-white rounded-[20px] border border-[#e5e0d7] shadow-[0_12px_28px_-24px_rgba(35,50,43,.45)] overflow-visible">
+              <div className="absolute -right-[51px] top-[105px] z-20 w-7 h-7 rounded-full bg-[#f5f3ee] border border-[#a8c9bb] grid place-items-center shadow-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#1f6d54]" />
+              </div>
+              <div className="overflow-hidden rounded-[20px]">
               <div className="px-5 py-4 border-b border-[#eee9e1] flex items-center justify-between">
                 <div>
                   <h3 className="text-[18px] font-black">עבודות שמחכות לבדיקה</h3>
@@ -391,27 +404,6 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
                 )}
               </div>
             </div>
-
-            <aside className="relative space-y-4">
-              <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
-                <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
-                <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />
-                <Sparkles size={19} className="text-[#2b755d]" />
-                <h3 className="font-black mt-3">בדיקה פשוטה, לא עוד מערכת</h3>
-                <p className="text-sm text-[#64716b] leading-6 mt-2 max-w-[250px]">
-                  פתח עבודה אחת, ראה מה הוגש, כתוב משוב קצר וסיים בהחלטה אחת.
-                </p>
-              </div>
-
-              <div className="rounded-[18px] border border-[#e5e0d7] bg-white p-5">
-                <h3 className="font-black">מה חשוב לבדוק?</h3>
-                <div className="mt-4 space-y-3 text-sm text-[#5f6c75]">
-                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם התוכן ברור ומבוסס?</div>
-                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם המקום והתחנות מתאימים?</div>
-                  <div className="flex gap-2"><Check size={16} className="text-[#2c8063] mt-0.5" /> האם יש משהו שדורש תיקון לפני המשך?</div>
-                </div>
-              </div>
-            </aside>
           </section>
         ) : (
           <section className="relative z-10 rounded-[20px] border border-[#e5e0d7] bg-white p-12 text-center">

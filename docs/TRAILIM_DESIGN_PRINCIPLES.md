@@ -208,3 +208,30 @@ Default workflow:
 - Use heavier autonomous tooling only when it has a clear advantage: large refactors, backend/infrastructure, Firebase, complex local test/debug loops, or wide multi-file changes.
 
 Do not keep using indirect prompt handoffs when direct repository work is sufficient.
+
+
+## Workflow-as-route principle
+
+Trailim should not try to escape generic boxy UI by scattering decorative route lines across dashboards.
+
+Instead, use the route metaphor where it has **structural meaning**:
+
+- student project stages
+- station creation flows
+- field verification
+- teacher review/progress
+- guided assignments
+
+The route metaphor should communicate:
+**completed → current → next → locked/future**
+
+Use checkpoints, a connecting path, and progressive disclosure so users always understand:
+- where they are
+- what is complete
+- what to do now
+- what comes next
+
+For teachers, show the same journey as progress and review status.
+For students, show it as a guided sequence of tasks.
+
+Avoid turning dashboard decoration into a stepper unless the steps are truly the workflow.

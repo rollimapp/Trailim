@@ -302,61 +302,155 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
               </div>
             </div>
           ) : (
-            <div className="max-w-[860px] mx-auto px-8 py-7">
-              <p className="text-xs font-semibold text-emerald-800 mb-1">שלב 2 מתוך 6</p>
-              <h2 className="text-2xl font-bold">חקר מקדים</h2>
-              <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-                לפני שבונים תחנות, צריך לבנות בסיס אמין לנושא שבחרתם. כל מה שתכתבו כאן יישמר כחומר לפרויקט ולדוח הסופי.
-              </p>
-
-              <section className="mt-7 border-y border-slate-200 bg-white">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold">1. מקורות</h3>
-                      <p className="text-xs text-slate-500 mt-1">הוסיפו לפחות שני מקורות אמינים שעליהם יתבסס החקר.</p>
-                    </div>
-                    <span className="text-xs font-semibold text-emerald-800">1 מתוך 2</span>
+            <div className="max-w-[980px] mx-auto px-8 py-7">
+              <div className="flex items-end justify-between gap-6 mb-7">
+                <div>
+                  <p className="text-xs font-bold text-[#2b755d] mb-1">המסלול שלך בפרויקט</p>
+                  <h2 className="text-[30px] font-black tracking-tight">מנושא לסיור — צעד אחר צעד</h2>
+                  <p className="text-sm text-slate-500 mt-2 max-w-2xl">
+                    כל שלב שנשלם פותח את התחנה הבאה. כרגע אתם בחקר המקדים.
+                  </p>
+                </div>
+                <div className="rounded-[16px] bg-[#eef6f2] border border-[#d8e9e2] px-4 py-3 min-w-[170px]">
+                  <div className="text-[11px] text-slate-500">התקדמות</div>
+                  <div className="flex items-end gap-2 mt-1">
+                    <span className="text-[26px] font-black text-[#1f6d54]">2</span>
+                    <span className="text-sm font-bold text-slate-500 mb-1">מתוך 6 שלבים</span>
                   </div>
                 </div>
-                <div className="px-5 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="w-4 h-4 text-slate-500" />
-                    <div>
-                      <p className="text-sm font-semibold">מאמר: שינויים חברתיים בשכונות מרכז העיר</p>
-                      <p className="text-xs text-slate-400">מקור 1 • נוסף היום</p>
-                    </div>
-                  </div>
-                  <button className="text-xs font-semibold text-slate-500">עריכה</button>
-                </div>
-                <button className="w-full px-5 py-3 border-t border-slate-100 text-xs font-bold text-emerald-800 hover:bg-emerald-50/40 flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> הוספת מקור
-                </button>
-              </section>
+              </div>
 
-              <section className="mt-6 border-y border-slate-200 bg-white">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold">2. מושגים ותיאוריות</h3>
-                  <p className="text-xs text-slate-500 mt-1">בחרו מושגים רלוונטיים והסבירו אותם במילים שלכם. דרישת הפרויקט הנוכחית: 5.</p>
-                </div>
-                <div className="px-5 py-5 grid grid-cols-2 gap-4">
-                  {['זהות', 'קהילה', 'נורמות'].map((concept) => (
-                    <div key={concept} className="border border-slate-200 rounded-lg p-3">
-                      <p className="text-sm font-bold">{concept}</p>
-                      <p className="text-xs text-slate-500 mt-1">נשמר הסבר ראשוני. ניתן לערוך לפני הגשה.</p>
-                    </div>
-                  ))}
-                  <button className="min-h-16 border border-dashed border-slate-300 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4" /> הוספת מושג
-                  </button>
-                </div>
-              </section>
+              <div className="relative">
+                <div className="absolute right-[29px] top-10 bottom-12 w-[2px] bg-[#cfe1d9]" />
 
-              <div className="mt-6 flex items-center justify-between">
-                <p className="text-xs text-slate-500">השלב יישלח למורה רק כשתעמדו בכל דרישות החובה.</p>
-                <button className="h-10 px-4 rounded-lg bg-slate-200 text-slate-500 text-xs font-bold cursor-not-allowed">
-                  שליחה לאישור המורה
-                </button>
+                <div className="space-y-5">
+                  {stages.map((stage, index) => {
+                    const isDone = stage.status === 'done';
+                    const isActive = stage.status === 'active';
+                    const isLocked = stage.status === 'locked';
+
+                    return (
+                      <div key={stage.id} className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-4 items-start">
+                        <div className="relative z-10 flex justify-center pt-1">
+                          <div className={
+                            `w-[58px] h-[58px] rounded-full border-[6px] border-[#F7F7F4] shadow-sm grid place-items-center font-black transition ${
+                              isDone
+                                ? 'bg-[#1f6d54] text-white'
+                                : isActive
+                                  ? 'bg-[#f3c872] text-[#5d4812] ring-4 ring-[#f8e8b8]'
+                                  : 'bg-[#e8ece9] text-[#9aa5a0]'
+                            }`
+                          }>
+                            {isDone ? <Check className="w-5 h-5" /> : index + 1}
+                          </div>
+                        </div>
+
+                        <section
+                          onClick={() => !isLocked && setSelectedStageId(stage.id)}
+                          className={
+                            `relative overflow-hidden rounded-[20px] border transition ${
+                              isActive
+                                ? 'bg-white border-[#d8cfae] shadow-[0_18px_36px_-30px_rgba(37,62,51,.55)]'
+                                : isDone
+                                  ? 'bg-[#f8fbf9] border-[#dbe8e1]'
+                                  : 'bg-[#f4f4f1] border-[#e6e5df] opacity-75'
+                            }`
+                          }
+                        >
+                          <div className="px-5 py-4 flex items-start justify-between gap-5">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-400">תחנה {index + 1}</span>
+                                {isDone && <span className="text-[11px] font-bold text-emerald-700">הושלם</span>}
+                                {isActive && <span className="text-[11px] font-bold text-amber-700">עכשיו</span>}
+                                {isLocked && <span className="text-[11px] font-bold text-slate-400">ייפתח בהמשך</span>}
+                              </div>
+                              <h3 className="text-[18px] font-black mt-1">{stage.title}</h3>
+                              <p className="text-sm text-slate-500 mt-1 leading-6">{stage.description}</p>
+                            </div>
+                            <div className="text-[12px] font-bold text-slate-500 bg-white/75 border border-slate-200 rounded-full px-3 py-1.5 shrink-0">
+                              {stage.requirement}
+                            </div>
+                          </div>
+
+                          {isActive && (
+                            <div className="border-t border-[#eee9df] bg-[#fffdf8]">
+                              <div className="grid grid-cols-2 gap-0">
+                                <div className="p-5 border-l border-[#eee9df]">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <BookOpen className="w-4 h-4 text-[#2b755d]" />
+                                        <h4 className="text-sm font-black">מקורות</h4>
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-1">הוסיפו לפחות שני מקורות אמינים.</p>
+                                    </div>
+                                    <span className="text-[11px] font-black text-[#1f6d54] bg-[#e7f4ee] rounded-full px-2.5 py-1">1 מתוך 2</span>
+                                  </div>
+
+                                  <div className="mt-4 rounded-[13px] border border-[#e6e1d9] bg-white p-3">
+                                    <p className="text-sm font-bold">שינויים חברתיים בשכונות מרכז העיר</p>
+                                    <p className="text-xs text-slate-400 mt-1">מקור 1 • נוסף היום</p>
+                                  </div>
+
+                                  <button className="mt-3 text-xs font-black text-[#1f6d54] flex items-center gap-1.5">
+                                    <Plus className="w-4 h-4" /> הוספת מקור
+                                  </button>
+                                </div>
+
+                                <div className="p-5">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-[#2b755d]" />
+                                        <h4 className="text-sm font-black">מושגים ותיאוריות</h4>
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-1">בחרו והסבירו חמישה מושגים רלוונטיים.</p>
+                                    </div>
+                                    <span className="text-[11px] font-black text-amber-700 bg-[#fff3d8] rounded-full px-2.5 py-1">3 מתוך 5</span>
+                                  </div>
+
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    {['זהות', 'קהילה', 'נורמות'].map((concept) => (
+                                      <span key={concept} className="rounded-full border border-[#d9e4df] bg-white px-3 py-1.5 text-xs font-bold text-slate-700">
+                                        {concept}
+                                      </span>
+                                    ))}
+                                    <button className="rounded-full border border-dashed border-[#bfc8c3] px-3 py-1.5 text-xs font-bold text-slate-500">
+                                      + הוספה
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="px-5 py-4 border-t border-[#eee9df] flex items-center justify-between">
+                                <p className="text-xs text-slate-500">השלב הבא ייפתח לאחר השלמת כל דרישות החקר ושליחה למורה.</p>
+                                <button className="h-10 px-4 rounded-[11px] bg-slate-200 text-slate-500 text-xs font-black cursor-not-allowed">
+                                  השלימו את הדרישות כדי להמשיך
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {isDone && (
+                            <div className="px-5 pb-4">
+                              <div className="inline-flex items-center gap-2 text-xs font-bold text-[#1f6d54]">
+                                <CheckCircle2 className="w-4 h-4" />
+                                הנושא אושר על ידי המורה
+                              </div>
+                            </div>
+                          )}
+
+                          {isLocked && index === 2 && (
+                            <div className="px-5 pb-4 text-xs text-slate-400">
+                              כאן תתחילו להפוך את החקר לתחנות שאנשים אחרים יוכלו לחוות בשטח.
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

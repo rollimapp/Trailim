@@ -11,6 +11,7 @@ import { ActiveRouteContainer } from './components/active/ActiveRouteContainer';
 import { CreatorDashboardView } from './components/creator/CreatorDashboardView';
 import { RouteBuilderContainer } from './components/creator/RouteBuilderContainer';
 import { ReviewQueueView } from './components/review/ReviewQueueView';
+import { DesktopTeacherReview } from './components/review/DesktopTeacherReview';
 import { MyActivityView } from './components/activity/MyActivityView';
 import { CommunityView } from './components/community/CommunityView';
 import { ProfileView } from './components/profile/ProfileView';
@@ -54,26 +55,13 @@ const MainContent: React.FC = () => {
           ) : desktopWorkspaceView === 'project' ? (
             <GuidedProjectWorkspace onBack={() => setDesktopWorkspaceView('home')} />
           ) : (
-            <div className="h-full w-full bg-[#F7F7F4] flex flex-col">
-              <div className="h-14 px-5 border-b border-slate-200 bg-white flex items-center">
-                <button
-                  onClick={() => setDesktopWorkspaceView('home')}
-                  className="h-9 px-3 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50"
-                >
-                  חזרה לדף הבית
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-auto p-6">
-                <div className="max-w-[1200px] mx-auto">
-                  <ReviewQueueView
-                    onPreviewRoute={(route, stations) => {
-                      setSelectedRouteStations(stations || null);
-                      setSelectedRouteForDetail(route);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+            <DesktopTeacherReview
+              onBack={() => setDesktopWorkspaceView('home')}
+              onPreviewRoute={(route, stations) => {
+                setSelectedRouteStations(stations || null);
+                setSelectedRouteForDetail(route);
+              }}
+            />
           )}
         </div>
       )}

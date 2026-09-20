@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
+  ChevronDown,
   Circle,
   Clock3,
   FileText,
@@ -145,6 +146,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
   const [selectedTeamId, setSelectedTeamId] = useState('t1');
   const [selectedStageId, setSelectedStageId] = useState('research');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFutureStages, setShowFutureStages] = useState(false);
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
   const selectedStage = stages.find((stage) => stage.id === selectedStageId) ?? stages[1];
@@ -302,158 +304,177 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
               </div>
             </div>
           ) : (
-            <div className="max-w-[980px] mx-auto px-8 py-7">
-              <div className="flex items-end justify-between gap-6 mb-7">
-                <div>
-                  <p className="text-xs font-bold text-[#2b755d] mb-1">המסלול שלך בפרויקט</p>
-                  <h2 className="text-[30px] font-black tracking-tight">מנושא לסיור — צעד אחר צעד</h2>
-                  <p className="text-sm text-slate-500 mt-2 max-w-2xl">
-                    כל שלב שנשלם פותח את התחנה הבאה. כרגע אתם בחקר המקדים.
-                  </p>
-                </div>
-                <div className="rounded-[16px] bg-[#eef6f2] border border-[#d8e9e2] px-4 py-3 min-w-[170px]">
-                  <div className="text-[11px] text-slate-500">התקדמות</div>
-                  <div className="flex items-end gap-2 mt-1">
-                    <span className="text-[26px] font-black text-[#1f6d54]">2</span>
-                    <span className="text-sm font-bold text-slate-500 mb-1">מתוך 6 שלבים</span>
+            <div className="max-w-[940px] mx-auto px-8 py-8">
+              <div className="mb-8 border-b border-[#dedbd3] pb-5">
+                <p className="text-xs font-bold text-[#2b755d] mb-1">המסלול שלך בפרויקט</p>
+                <div className="flex items-end justify-between gap-8">
+                  <div>
+                    <h2 className="text-[31px] font-black tracking-tight">מנושא לסיור — צעד אחר צעד</h2>
+                    <p className="text-sm text-slate-500 mt-2 max-w-2xl">
+                      בכל פעם פתוחה רק התחנה שצריך לעבוד עליה עכשיו. השלמתם? התחנה הבאה נפתחת.
+                    </p>
+                  </div>
+                  <div className="text-left shrink-0">
+                    <div className="text-[12px] font-bold text-slate-500">שלב 2 מתוך 6</div>
+                    <div className="text-[13px] text-[#2b755d] mt-1">חקר מקדים</div>
                   </div>
                 </div>
               </div>
 
               <div className="relative">
-                <div className="absolute right-[29px] top-10 bottom-12 w-[2px] bg-[#cfe1d9]" />
+                <div className="absolute right-[31px] top-8 h-[210px] w-[2px] bg-[#cfe1d9]" />
 
-                <div className="space-y-5">
-                  {stages.map((stage, index) => {
-                    const isDone = stage.status === 'done';
-                    const isActive = stage.status === 'active';
-                    const isLocked = stage.status === 'locked';
+                <div className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-4 items-start mb-4">
+                  <div className="relative z-10 flex justify-center pt-1">
+                    <div className="w-[58px] h-[58px] rounded-full border-[6px] border-[#F7F7F4] bg-[#1f6d54] text-white shadow-sm grid place-items-center">
+                      <Check className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="py-3 border-b border-[#dfe7e2]">
+                    <div className="flex items-center gap-2 text-[11px] font-bold">
+                      <span className="text-emerald-700">הושלם</span>
+                      <span className="text-slate-400">תחנה 1</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-6 mt-1">
+                      <div>
+                        <h3 className="text-[18px] font-black">בחירת נושא</h3>
+                        <p className="text-sm text-slate-500 mt-1">זהות וקהילה בנחלאות</p>
+                      </div>
+                      <div className="inline-flex items-center gap-2 text-xs font-bold text-[#1f6d54]">
+                        <CheckCircle2 className="w-4 h-4" />
+                        אושר על ידי המורה
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                    return (
-                      <div key={stage.id} className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-4 items-start">
-                        <div className="relative z-10 flex justify-center pt-1">
-                          <div className={
-                            `w-[58px] h-[58px] rounded-full border-[6px] border-[#F7F7F4] shadow-sm grid place-items-center font-black transition ${
-                              isDone
-                                ? 'bg-[#1f6d54] text-white'
-                                : isActive
-                                  ? 'bg-[#f3c872] text-[#5d4812] ring-4 ring-[#f8e8b8]'
-                                  : 'bg-[#e8ece9] text-[#9aa5a0]'
-                            }`
-                          }>
-                            {isDone ? <Check className="w-5 h-5" /> : index + 1}
+                <div className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-4 items-start">
+                  <div className="relative z-10 flex justify-center pt-2">
+                    <div className="w-[58px] h-[58px] rounded-full border-[6px] border-[#F7F7F4] bg-[#f3c872] text-[#5d4812] ring-4 ring-[#f8e8b8] shadow-sm grid place-items-center font-black">
+                      2
+                    </div>
+                  </div>
+
+                  <section className="bg-[#fffdf8] border-y border-[#ddd4bd] shadow-[0_16px_34px_-30px_rgba(37,62,51,.55)]">
+                    <div className="px-6 py-5 flex items-start justify-between gap-6">
+                      <div>
+                        <div className="flex items-center gap-2 text-[11px] font-bold">
+                          <span className="text-amber-700">עכשיו</span>
+                          <span className="text-slate-400">תחנה 2</span>
+                        </div>
+                        <h3 className="text-[22px] font-black mt-1">חקר מקדים</h3>
+                        <p className="text-sm text-slate-500 mt-1 leading-6">
+                          אספו מקורות אמינים ובנו את הבסיס התיאורטי לפני יצירת התחנות.
+                        </p>
+                      </div>
+                      <div className="text-left shrink-0">
+                        <div className="text-[11px] text-slate-400">נשאר להשלים</div>
+                        <div className="text-sm font-black text-[#8c6615] mt-1">מקור אחד + 2 מושגים</div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[#ece5d6] grid grid-cols-2">
+                      <div className="p-6 border-l border-[#ece5d6]">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-[#2b755d]" />
+                              <h4 className="text-sm font-black">מקורות</h4>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">לפחות שני מקורות אמינים.</p>
                           </div>
+                          <strong className="text-xs text-[#1f6d54]">1 / 2</strong>
                         </div>
 
-                        <section
-                          onClick={() => !isLocked && setSelectedStageId(stage.id)}
-                          className={
-                            `relative overflow-hidden rounded-[20px] border transition ${
-                              isActive
-                                ? 'bg-white border-[#d8cfae] shadow-[0_18px_36px_-30px_rgba(37,62,51,.55)]'
-                                : isDone
-                                  ? 'bg-[#f8fbf9] border-[#dbe8e1]'
-                                  : 'bg-[#f4f4f1] border-[#e6e5df] opacity-75'
-                            }`
-                          }
-                        >
-                          <div className="px-5 py-4 flex items-start justify-between gap-5">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-bold text-slate-400">תחנה {index + 1}</span>
-                                {isDone && <span className="text-[11px] font-bold text-emerald-700">הושלם</span>}
-                                {isActive && <span className="text-[11px] font-bold text-amber-700">עכשיו</span>}
-                                {isLocked && <span className="text-[11px] font-bold text-slate-400">ייפתח בהמשך</span>}
-                              </div>
-                              <h3 className="text-[18px] font-black mt-1">{stage.title}</h3>
-                              <p className="text-sm text-slate-500 mt-1 leading-6">{stage.description}</p>
+                        <div className="mt-5 border-y border-[#e7e2d9] py-3">
+                          <p className="text-sm font-bold">שינויים חברתיים בשכונות מרכז העיר</p>
+                          <p className="text-xs text-slate-400 mt-1">מקור 1 • נוסף היום</p>
+                        </div>
+
+                        <button className="mt-3 text-xs font-black text-[#1f6d54] flex items-center gap-1.5">
+                          <Plus className="w-4 h-4" /> הוספת מקור
+                        </button>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-[#2b755d]" />
+                              <h4 className="text-sm font-black">מושגים ותיאוריות</h4>
                             </div>
-                            <div className="text-[12px] font-bold text-slate-500 bg-white/75 border border-slate-200 rounded-full px-3 py-1.5 shrink-0">
-                              {stage.requirement}
+                            <p className="text-xs text-slate-500 mt-1">בחרו והסבירו חמישה מושגים.</p>
+                          </div>
+                          <strong className="text-xs text-[#9b6a11]">3 / 5</strong>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-3 text-sm">
+                          {['זהות', 'קהילה', 'נורמות'].map((concept) => (
+                            <span key={concept} className="border-b border-[#b7c8c1] pb-1 font-bold text-slate-700">
+                              {concept}
+                            </span>
+                          ))}
+                          <button className="text-xs font-black text-[#1f6d54]">+ הוספת מושג</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-6 py-4 border-t border-[#ece5d6] flex items-center justify-between gap-5">
+                      <p className="text-xs text-slate-500">
+                        התחנה הבאה תיפתח רק לאחר השלמת הדרישות ושליחה למורה.
+                      </p>
+                      <button className="h-10 px-4 border border-[#d8d3c9] bg-[#efeee9] text-slate-400 text-xs font-black cursor-not-allowed">
+                        השלימו את הדרישות כדי להמשיך
+                      </button>
+                    </div>
+                  </section>
+                </div>
+
+                <div className="relative grid grid-cols-[76px_minmax(0,1fr)] gap-4 items-start mt-6">
+                  <div className="relative z-10 flex justify-center pt-1">
+                    <div className="w-[42px] h-[42px] rounded-full border-[5px] border-[#F7F7F4] bg-[#e6e9e7] text-[#9aa5a0] grid place-items-center font-black">
+                      3
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      onClick={() => setShowFutureStages((value) => !value)}
+                      className="w-full flex items-center justify-between gap-4 py-4 border-y border-[#dddcd6] text-right hover:bg-white/40 transition"
+                    >
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-400">נעול כרגע</div>
+                        <h3 className="text-[17px] font-black mt-1">מה בהמשך?</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          עוד 4 תחנות ייפתחו בהדרגה אחרי השלמת החקר המקדים.
+                        </p>
+                      </div>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showFutureStages ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showFutureStages && (
+                      <div className="border-b border-[#dddcd6] py-2">
+                        {stages.slice(2).map((stage, index) => (
+                          <div key={stage.id} className="grid grid-cols-[36px_minmax(0,1fr)] gap-3 py-3 border-b border-[#ecebe6] last:border-0">
+                            <div className="w-7 h-7 rounded-full bg-[#eceeec] text-[#98a09c] grid place-items-center text-xs font-black">
+                              {index + 3}
+                            </div>
+                            <div>
+                              <div className="flex items-center justify-between gap-4">
+                                <h4 className="text-sm font-black text-slate-500">{stage.title}</h4>
+                                <span className="text-[11px] font-bold text-slate-400">נעול</span>
+                              </div>
+                              <p className="text-xs text-slate-400 mt-1">{stage.requirement}</p>
                             </div>
                           </div>
-
-                          {isActive && (
-                            <div className="border-t border-[#eee9df] bg-[#fffdf8]">
-                              <div className="grid grid-cols-2 gap-0">
-                                <div className="p-5 border-l border-[#eee9df]">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <BookOpen className="w-4 h-4 text-[#2b755d]" />
-                                        <h4 className="text-sm font-black">מקורות</h4>
-                                      </div>
-                                      <p className="text-xs text-slate-500 mt-1">הוסיפו לפחות שני מקורות אמינים.</p>
-                                    </div>
-                                    <span className="text-[11px] font-black text-[#1f6d54] bg-[#e7f4ee] rounded-full px-2.5 py-1">1 מתוך 2</span>
-                                  </div>
-
-                                  <div className="mt-4 rounded-[13px] border border-[#e6e1d9] bg-white p-3">
-                                    <p className="text-sm font-bold">שינויים חברתיים בשכונות מרכז העיר</p>
-                                    <p className="text-xs text-slate-400 mt-1">מקור 1 • נוסף היום</p>
-                                  </div>
-
-                                  <button className="mt-3 text-xs font-black text-[#1f6d54] flex items-center gap-1.5">
-                                    <Plus className="w-4 h-4" /> הוספת מקור
-                                  </button>
-                                </div>
-
-                                <div className="p-5">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-[#2b755d]" />
-                                        <h4 className="text-sm font-black">מושגים ותיאוריות</h4>
-                                      </div>
-                                      <p className="text-xs text-slate-500 mt-1">בחרו והסבירו חמישה מושגים רלוונטיים.</p>
-                                    </div>
-                                    <span className="text-[11px] font-black text-amber-700 bg-[#fff3d8] rounded-full px-2.5 py-1">3 מתוך 5</span>
-                                  </div>
-
-                                  <div className="mt-4 flex flex-wrap gap-2">
-                                    {['זהות', 'קהילה', 'נורמות'].map((concept) => (
-                                      <span key={concept} className="rounded-full border border-[#d9e4df] bg-white px-3 py-1.5 text-xs font-bold text-slate-700">
-                                        {concept}
-                                      </span>
-                                    ))}
-                                    <button className="rounded-full border border-dashed border-[#bfc8c3] px-3 py-1.5 text-xs font-bold text-slate-500">
-                                      + הוספה
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="px-5 py-4 border-t border-[#eee9df] flex items-center justify-between">
-                                <p className="text-xs text-slate-500">השלב הבא ייפתח לאחר השלמת כל דרישות החקר ושליחה למורה.</p>
-                                <button className="h-10 px-4 rounded-[11px] bg-slate-200 text-slate-500 text-xs font-black cursor-not-allowed">
-                                  השלימו את הדרישות כדי להמשיך
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {isDone && (
-                            <div className="px-5 pb-4">
-                              <div className="inline-flex items-center gap-2 text-xs font-bold text-[#1f6d54]">
-                                <CheckCircle2 className="w-4 h-4" />
-                                הנושא אושר על ידי המורה
-                              </div>
-                            </div>
-                          )}
-
-                          {isLocked && index === 2 && (
-                            <div className="px-5 pb-4 text-xs text-slate-400">
-                              כאן תתחילו להפוך את החקר לתחנות שאנשים אחרים יוכלו לחוות בשטח.
-                            </div>
-                          )}
-                        </section>
+                        ))}
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          )}          )}
         </main>
 
         <aside className="border-r border-slate-200 bg-white min-h-0 overflow-y-auto">

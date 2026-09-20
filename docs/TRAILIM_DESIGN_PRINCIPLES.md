@@ -1,0 +1,210 @@
+# Trailim — Product & Visual Design Principles
+
+_Last updated: 2026-09-20_
+
+## Product principle
+
+**Field-first on mobile. Workspace-first on desktop.**
+
+- Mobile is the experience layer: explore, navigate, field tasks, QR/camera/location, short responses, route participation.
+- Desktop is the creation and management layer: project setup, research, stations, teacher review, progress, teams, publishing.
+- Same product, same backend, same brand. Different interaction depth by context.
+
+## Core usability rule
+
+A user should understand what to do within roughly 10 seconds.
+
+- Teacher home answers: **What needs my attention now?**
+- Student home answers: **What do I need to do now?**
+- Field mode answers: **Where am I and what do I do here?**
+
+Complexity may exist in the system, but should be progressively disclosed.
+
+### Screen rules
+
+- One primary job per screen.
+- One clearly dominant action whenever possible.
+- Avoid exposing future stages unless useful now.
+- Avoid data that does not lead to an action.
+- Review one submission at a time.
+- Student sees the current stage first, not the whole system.
+- Desktop rich does **not** mean desktop complex.
+
+## Desktop navigation direction
+
+Teacher desktop:
+- Home
+- My Projects
+- Review
+- Students
+- Create Project
+- Explore
+- Community
+
+Teacher lands on **Teacher Home**, not Explore.
+
+Student desktop should prioritize:
+- What I need to do now
+- Current project/stage
+- My route/stations
+
+Mobile keeps the existing Trailim exploration experience and should remain visually rich and field-oriented. Teacher/student work areas are accessible without replacing the existing mobile app identity.
+
+## Visual identity
+
+Trailim should feel like a product about **place, movement, discovery and field learning** — not a generic education dashboard.
+
+### Primary visual motifs
+
+Use a small, consistent set:
+1. **Route line**
+2. **Waypoint / GPS marker**
+3. **Field note / stamped label**
+4. **Subtle topographic / map texture**
+
+These motifs should create continuity across screens.
+
+### Use visual motifs for meaning
+
+Prefer motifs that explain state or progress:
+- project stages as checkpoints
+- progress as a route with waypoints
+- field verification as location/waypoint state
+- approved station as completed checkpoint
+- review flow as a clear stop before moving forward
+
+### Do not overdecorate
+
+Avoid:
+- footprints everywhere
+- cartoon treasure-map styling
+- excessive doodles
+- decorative stickers on every card
+- visual motifs that do not carry meaning
+- multiple competing motif families on one screen
+
+The goal is **field exploration**, not childish adventure-game UI.
+
+## Anti-generic rules
+
+Avoid:
+- SaaS dashboard look
+- card soup
+- every area inside a rounded box
+- excessive pills/badges
+- repeated icon + title + subtitle cards
+- decorative gradients without purpose
+- oversized empty whitespace
+- overuse of Lucide-style icons as visual identity
+- symmetrical KPI-dashboard compositions unless genuinely useful
+
+Rule:
+**Objects can be cards. Workspace structure should not be cards.**
+
+Use continuous surfaces, strong hierarchy, editorial composition, photography, map language and selective visual motifs.
+
+## Teacher visual tone
+
+Teacher desktop should feel:
+- clear
+- calm
+- capable
+- visually appealing
+- professional
+- easy to scan
+
+It may contain rich imagery, but the UI should not become playful or decorative enough to reduce confidence or speed.
+
+## Student visual tone
+
+Student screens can be more expressive:
+- stronger sense of route/progress
+- richer visuals
+- waypoint/checkpoint language
+- imagery tied to place
+- more field-action cues
+
+Still avoid gimmicks or game-like decoration that competes with the learning task.
+
+## Imagery as a product requirement
+
+Visual quality is part of the product, not optional decoration.
+
+Projects and stations should strongly encourage a representative image.
+
+Student creation flow should support:
+- upload a field photo
+- take a photo on site
+- optionally generate an AI image
+
+AI image generation belongs **inside project/station creation**, not on teacher home.
+
+Suggested generation guidance:
+- realistic, high-quality image of the place/topic
+- natural light
+- no embedded text
+- suitable for a route/project card
+- consistent crop/aspect ratio
+
+Product should provide:
+- fixed aspect ratios
+- automatic crop
+- graceful fallback when no image exists
+- quality guidance
+
+## Hebrew and RTL
+
+Hebrew MVP must feel native, not translated.
+
+Use natural Hebrew such as:
+- בדיקות
+- עבודות שמחכות לבדיקה
+- פתח לבדיקה
+- החזרה לתיקון
+- אישור העבודה
+- הפרויקטים שלי
+- יצירת פרויקט
+- גילוי מסלולים
+- הגשות אחרונות
+
+Avoid English product jargon in the Hebrew experience unless there is a clear reason.
+
+## Teacher Home
+
+Teacher Home is not a system dashboard. It is an orientation screen.
+
+Primary content:
+- active project
+- items waiting for review
+- active groups/projects
+- visually rich project cards
+- quick path back to Explore
+
+The home can be visually rich, but not every feature needs equal visual weight.
+
+## Review
+
+Review should answer one question:
+**What is waiting for me, and what decision do I need to make?**
+
+Primary flow:
+Open submission → inspect → feedback → approve or return for revision.
+
+Avoid moderation/admin terminology in teacher-facing copy.
+
+## Current implementation direction
+
+The current desktop work uses:
+- TeacherHomeVisualProof as the visual direction for teacher home
+- DesktopTeacherReview as the visual direction for review
+- GuidedProjectWorkspace as a deeper project overview/workspace, not the teacher landing page
+
+These are visual/UX directions first. Backend/data wiring should preserve the existing Trailim route/version/review model and should not hard-code one Ministry assessment workflow into core domain objects.
+
+## Development workflow
+
+Default workflow:
+- Product/UI iteration: edit directly in GitHub, commit to feature branch, user pulls and reviews.
+- Use heavier autonomous tooling only when it has a clear advantage: large refactors, backend/infrastructure, Firebase, complex local test/debug loops, or wide multi-file changes.
+
+Do not keep using indirect prompt handoffs when direct repository work is sufficient.

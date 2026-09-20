@@ -14,7 +14,7 @@ import { ReviewQueueView } from './components/review/ReviewQueueView';
 import { MyActivityView } from './components/activity/MyActivityView';
 import { CommunityView } from './components/community/CommunityView';
 import { ProfileView } from './components/profile/ProfileView';
-import { AnalyticsView } from './components/analytics/AnalyticsView';
+import { AnalyticsView } from './components/analytics/AnalyticsView';\nimport { GuidedProjectWorkspace } from './components/projects/GuidedProjectWorkspace';
 import { Route, Station, ExperienceMode } from './types';
 
 const MainContent: React.FC = () => {

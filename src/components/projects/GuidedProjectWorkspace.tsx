@@ -44,46 +44,53 @@ const stages: ProjectStage[] = [
   {
     id: 'topic',
     title: 'בחירת נושא',
-    description: 'בחרו תופעה, מקום או סיפור באזור הפרויקט וחברו אותו לתוכן שנלמד.',
+    description: 'בחרו נושא, מושג או תיאוריה מתוך תחום הדעת וחברו אותו למקום או לתופעה שתרצו לחקור.',
     status: 'done',
-    requirement: 'נושא מאושר על ידי המורה',
+    requirement: 'נושא ייחודי + אישור מורה',
   },
   {
     id: 'research',
     title: 'חקר מקדים',
-    description: 'אספו מקורות אמינים ובנו את הבסיס התיאורטי לפני יצירת התחנות.',
+    description: 'אספו לפחות שני מקורות אמינים ובנו סקירה מקדימה של חמישה מושגים או תיאוריות שיילוו אתכם לאורך הסיור.',
     status: 'active',
-    requirement: '2 מקורות לפחות + מושגים/תיאוריות רלוונטיים',
+    requirement: '2 מקורות לפחות + 5 מושגים/תיאוריות + אישור מורה',
   },
   {
-    id: 'stations',
-    title: 'בניית תחנות',
-    description: 'הפכו את החקר לתחנות שמחברות בין המקום, הידע והפעילות למשתתפים.',
+    id: 'plan',
+    title: 'תכנון הפעילות והתחנות',
+    description: 'תכננו מה המשתתפים יעשו בסיור ואיך כל תחנה תחבר בין המקום, המושגים והפעילות.',
     status: 'locked',
-    requirement: '2–3 תחנות',
+    requirement: 'פעילות מאושרת + תכנון 2–3 תחנות',
   },
   {
     id: 'field',
-    title: 'בדיקת שטח',
-    description: 'בדקו שהמיקום, התוכן והפעילות באמת עובדים במקום עצמו.',
+    title: 'סיור ובדיקת שטח',
+    description: 'צאו לשטח, בדקו את המקומות והתחנות, בצעו את הפעילות ותעדו תצפיות וממצאים מהחוויה.',
     status: 'locked',
-    requirement: 'תיעוד שטח ותיקונים',
+    requirement: 'ביצוע סיור + תצפיות/ממצאים + פעילות',
   },
   {
-    id: 'review',
-    title: 'הגשה ומשוב',
-    description: 'שלחו למורה, קבלו משוב ובצעו תיקונים לפני אישור.',
+    id: 'analysis',
+    title: 'ניתוח וכתיבת הדוח',
+    description: 'הדגימו את חמשת המושגים דרך מה שראיתם בסיור וחברו בין התיאוריה לבין המציאות שחוויתם.',
     status: 'locked',
-    requirement: 'אישור מורה',
+    requirement: 'יישום 5 מושגים + ניתוח + טיוטת דוח',
   },
   {
-    id: 'tour',
-    title: 'סיור ופרסום',
-    description: 'התחנות המאושרות מתחברות למסלול כיתתי ומופעלות בסיור.',
+    id: 'reflection',
+    title: 'רפלקציה אישית',
+    description: 'כל תלמיד ותלמידה כותבים רפלקציה אישית על החוויה, עבודת הצוות, הלמידה והשימוש ב-AI.',
     status: 'locked',
-    requirement: 'סיור מודרך + מסלול מפורסם',
+    requirement: 'רפלקציה אישית לכל תלמיד',
   },
-];
+  {
+    id: 'present',
+    title: 'הצגה ופרסום',
+    description: 'הציגו את התוצר, ענו על שאלות, וקבלו אישור סופי לפרסום המסלול.',
+    status: 'locked',
+    requirement: 'הצגה + אישור מורה + מסלול מוכן לפרסום',
+  },
+]
 
 const teams: ProjectTeam[] = [
   {
@@ -317,7 +324,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                     </p>
                   </div>
                   <div className="text-left shrink-0">
-                    <div className="text-[12px] font-bold text-slate-500">שלב 2 מתוך 6</div>
+                    <div className="text-[12px] font-bold text-slate-500">שלב 2 מתוך 7</div>
                     <div className="text-[13px] text-[#2b755d] mt-1">חקר מקדים</div>
                   </div>
                 </div>
@@ -409,7 +416,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                               <BookOpen className="w-4 h-4 text-[#2b755d]" />
                               <h4 className="text-sm font-black">מקורות</h4>
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">לפחות שני מקורות אמינים.</p>
+                            <p className="text-xs text-slate-500 mt-1">לפחות שני מקורות אמינים, עם סיכום קצר של מה למדתם מכל מקור.</p>
                           </div>
                           <strong className="text-xs text-[#1f6d54]">1 / 2</strong>
                         </div>
@@ -431,7 +438,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                               <FileText className="w-4 h-4 text-[#2b755d]" />
                               <h4 className="text-sm font-black">מושגים ותיאוריות</h4>
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">בחרו והסבירו חמישה מושגים.</p>
+                            <p className="text-xs text-slate-500 mt-1">בחרו חמישה מושגים או תיאוריות והסבירו כל אחד במילים שלכם.</p>
                           </div>
                           <strong className="text-xs text-[#9b6a11]">3 / 5</strong>
                         </div>
@@ -448,8 +455,8 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                     </div>
 
                     <div className="px-6 py-4 border-t border-[#ece5d6] flex items-center justify-between gap-5">
-                      <p className="text-xs text-slate-500">
-                        התחנה הבאה תיפתח רק לאחר השלמת הדרישות ושליחה למורה.
+                      <p className="text-xs text-slate-500">הטקסט שתכתבו כאן יישמר וייכנס בהמשך לטיוטת הדוח. 
+                        התחנה הבאה — תכנון הפעילות והתחנות — תיפתח רק לאחר השלמת הדרישות ואישור המורה.
                       </p>
                       <button className="h-10 px-4 border border-[#d8d3c9] bg-[#efeee9] text-slate-400 text-xs font-black cursor-not-allowed">
                         השלימו את הדרישות כדי להמשיך
@@ -474,7 +481,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                         <div className="text-[11px] font-bold text-slate-400">נעול כרגע</div>
                         <h3 className="text-[17px] font-black mt-1">מה בהמשך?</h3>
                         <p className="text-sm text-slate-500 mt-1">
-                          עוד 4 תחנות ייפתחו בהדרגה אחרי השלמת החקר המקדים.
+                          עוד 5 תחנות ייפתחו בהדרגה אחרי השלמת החקר המקדים.
                         </p>
                       </div>
                       <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showFutureStages ? 'rotate-180' : ''}`} />

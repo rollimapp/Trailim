@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Plus,
+  Pencil,
   Search,
   Send,
   Users,
@@ -147,6 +148,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
   const [selectedStageId, setSelectedStageId] = useState('research');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFutureStages, setShowFutureStages] = useState(false);
+  const [showCompletedStage, setShowCompletedStage] = useState(false);
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
   const selectedStage = stages.find((stage) => stage.id === selectedStageId) ?? stages[1];
@@ -330,21 +332,47 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                       <Check className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="py-3 border-b border-[#dfe7e2]">
-                    <div className="flex items-center gap-2 text-[11px] font-bold">
-                      <span className="text-emerald-700">הושלם</span>
-                      <span className="text-slate-400">תחנה 1</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-6 mt-1">
+
+                  <div className="border-b border-[#dfe7e2]">
+                    <button
+                      onClick={() => setShowCompletedStage((value) => !value)}
+                      className="w-full py-3 flex items-center justify-between gap-6 text-right"
+                    >
                       <div>
-                        <h3 className="text-[18px] font-black">בחירת נושא</h3>
+                        <div className="flex items-center gap-2 text-[11px] font-bold">
+                          <span className="text-emerald-700">הושלם</span>
+                          <span className="text-slate-400">תחנה 1</span>
+                        </div>
+                        <h3 className="text-[18px] font-black mt-1">בחירת נושא</h3>
                         <p className="text-sm text-slate-500 mt-1">זהות וקהילה בנחלאות</p>
                       </div>
-                      <div className="inline-flex items-center gap-2 text-xs font-bold text-[#1f6d54]">
-                        <CheckCircle2 className="w-4 h-4" />
-                        אושר על ידי המורה
+
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="hidden xl:inline-flex items-center gap-2 text-xs font-bold text-[#1f6d54]">
+                          <CheckCircle2 className="w-4 h-4" />
+                          אושר על ידי המורה
+                        </div>
+                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showCompletedStage ? 'rotate-180' : ''}`} />
                       </div>
-                    </div>
+                    </button>
+
+                    {showCompletedStage && (
+                      <div className="pb-5 pt-1 grid grid-cols-[minmax(0,1fr)_170px] gap-6">
+                        <div>
+                          <p className="text-sm leading-6 text-slate-600">
+                            בחרתם נושא שמחבר בין מקום, תופעה חברתית והתוכן שנלמד. אפשר לחזור ולעדכן אותו כל עוד הפרויקט לא ננעל להגשה סופית.
+                          </p>
+                          <div className="mt-3 text-xs text-slate-500">
+                            נושא מאושר: <strong className="text-slate-700">זהות וקהילה בנחלאות</strong>
+                          </div>
+                        </div>
+
+                        <button className="h-10 self-start border border-[#cbd9d3] bg-white text-[#1f6d54] text-xs font-black flex items-center justify-center gap-2 hover:bg-[#f4f8f6]">
+                          <Pencil className="w-3.5 h-3.5" />
+                          עריכת הנושא
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -557,11 +585,29 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                   </div>
                 </div>
               </div>
-              <div className="px-5 py-5">
+              <div className="px-5 py-5 border-b border-slate-100">
                 <p className="text-xs font-bold mb-2">למה זה נשמר?</p>
                 <p className="text-xs leading-5 text-slate-500">
                   החומרים שתכתבו במהלך הפרויקט ישמשו גם לבניית התחנות וגם לטיוטת הדוח הסופי — אין צורך לכתוב את העבודה מחדש.
                 </p>
+              </div>
+
+              <div className="p-4">
+                <div className="relative overflow-hidden min-h-[210px] bg-[#173f35] text-white shadow-sm">
+                  <img
+                    src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=700&q=80"
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover opacity-70"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0f2f28]/95 via-[#173f35]/40 to-transparent" />
+                  <div className="relative h-full min-h-[210px] p-5 flex flex-col justify-end">
+                    <div className="text-[11px] font-bold text-[#bfe9d6]">TRAILIM</div>
+                    <div className="mt-2 text-[22px] leading-7 font-black max-w-[230px]">
+                      יוצאים מהכיתה.<br />מגלים את המקום.
+                    </div>
+                    <div className="mt-2 text-xs text-white/75">למידה שמתחילה בעולם האמיתי.</div>
+                  </div>
+                </div>
               </div>
             </>
           )}

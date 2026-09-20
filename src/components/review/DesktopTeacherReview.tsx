@@ -224,44 +224,33 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
       </header>
 
       <main className="relative max-w-[1450px] mx-auto p-6 space-y-5">
-        <div className="pointer-events-none absolute inset-x-6 top-[160px] bottom-8 z-0 overflow-visible" aria-hidden="true">
-          <svg viewBox="0 0 1400 760" preserveAspectRatio="none" className="w-full h-full opacity-[0.28]">
-            {/* A deliberate "route spine" that travels through the whitespace, not through the cards */}
+        <div className="pointer-events-none absolute z-0 top-[250px] bottom-[130px] right-[328px] w-[120px]" aria-hidden="true">
+          <svg viewBox="0 0 120 520" preserveAspectRatio="none" className="w-full h-full overflow-visible">
             <path
-              d="M1310 72
-                 C1270 88, 1240 108, 1210 132
-                 L1210 178
-                 C1210 208, 1185 226, 1145 226
-                 L1035 226
-                 C995 226, 972 250, 972 285
-                 L972 515
-                 C972 548, 948 568, 910 568
-                 L840 568"
+              d="M62 8
+                 C62 58, 38 82, 38 126
+                 C38 170, 62 194, 62 238
+                 C62 282, 40 306, 40 350
+                 C40 398, 62 424, 62 486"
               fill="none"
               stroke="#2f7a62"
-              strokeWidth="2.4"
+              strokeWidth="2.3"
               strokeLinecap="round"
-              strokeLinejoin="round"
               strokeDasharray="7 10"
+              opacity="0.38"
             />
-            <circle cx="1310" cy="72" r="5.8" fill="#2f7a62" />
-            <circle cx="1210" cy="178" r="5.8" fill="#2f7a62" />
-            <circle cx="1035" cy="226" r="5.8" fill="#2f7a62" />
-            <circle cx="972" cy="365" r="5.8" fill="#2f7a62" />
-            <circle cx="972" cy="515" r="5.8" fill="#2f7a62" />
-            <circle cx="840" cy="568" r="5.8" fill="#2f7a62" />
-
-            {/* a second, very subtle contour echo to soften the geometry */}
-            <path
-              d="M1360 112 C1320 136, 1302 170, 1304 212"
-              fill="none"
-              stroke="#2f7a62"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              opacity="0.35"
-            />
+            <circle cx="62" cy="18" r="6" fill="#2f7a62" opacity="0.8" />
+            <circle cx="38" cy="150" r="6" fill="#2f7a62" opacity="0.8" />
+            <circle cx="40" cy="370" r="6" fill="#2f7a62" opacity="0.8" />
+            <circle cx="62" cy="486" r="6" fill="#2f7a62" opacity="0.8" />
           </svg>
+
+          <div className="absolute top-[3px] right-[78px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">ממתין לבדיקה</div>
+          <div className="absolute top-[128px] right-[60px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">פותחים עבודה</div>
+          <div className="absolute top-[348px] right-[62px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">משוב והחלטה</div>
+          <div className="absolute bottom-[-2px] right-[78px] whitespace-nowrap text-[11px] font-bold text-[#5d746b]">אישור או תיקון</div>
         </div>
+
         <section className="relative z-10 overflow-hidden rounded-[22px] border border-black/5 min-h-[168px] bg-[#173f35] text-white shadow-[0_16px_36px_-28px_rgba(20,51,43,.65)]">
           <img
             src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80"
@@ -404,10 +393,6 @@ export const DesktopTeacherReview: React.FC<DesktopTeacherReviewProps> = ({ onBa
             </div>
 
             <aside className="relative space-y-4">
-              <div className="hidden xl:flex absolute -top-9 right-1 items-center gap-2 text-[11px] font-bold text-[#5e756c]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2f7a62]" />
-                תחנת בדיקה
-              </div>
               <div className="relative overflow-hidden rounded-[18px] border border-[#e6dfd3] bg-[#f7efe1] p-5">
                 <div className="absolute left-[-18px] bottom-[-18px] w-28 h-28 rounded-full border border-[#c8b99f]/50" />
                 <div className="absolute left-[18px] bottom-[22px] w-2.5 h-2.5 rounded-full bg-[#2b755d]" />

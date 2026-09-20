@@ -136,7 +136,11 @@ const statusClass: Record<TeamStatus, string> = {
   approved: 'text-emerald-800 bg-emerald-50',
 };
 
-export const GuidedProjectWorkspace: React.FC = () => {
+interface GuidedProjectWorkspaceProps {
+  onBack?: () => void;
+}
+
+export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ onBack }) => {
   const [mode, setMode] = useState<'teacher' | 'student'>('teacher');
   const [selectedTeamId, setSelectedTeamId] = useState('t1');
   const [selectedStageId, setSelectedStageId] = useState('research');
@@ -157,7 +161,7 @@ export const GuidedProjectWorkspace: React.FC = () => {
     <div dir="rtl" className="h-full min-h-0 bg-[#F7F7F4] text-slate-900">
       <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6">
         <div className="flex items-center gap-4 min-w-0">
-          <button className="h-9 w-9 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="חזרה">
+          <button onClick={onBack} className="h-9 w-9 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="חזרה">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="min-w-0">

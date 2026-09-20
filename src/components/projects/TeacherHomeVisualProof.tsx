@@ -49,7 +49,19 @@ const nav = [
   [Users, 'קהילה', false],
 ] as const;
 
-export const TeacherHomeVisualProof: React.FC = () => {
+interface TeacherHomeVisualProofProps {
+  onReview: () => void;
+  onOpenProject: () => void;
+  onCreateProject: () => void;
+  onExplore: () => void;
+}
+
+export const TeacherHomeVisualProof: React.FC<TeacherHomeVisualProofProps> = ({
+  onReview,
+  onOpenProject,
+  onCreateProject,
+  onExplore,
+}) => {
   return (
     <div dir="rtl" className="min-h-screen bg-[#f5f3ee] text-[#183047] font-sans overflow-auto">
       <div className="min-h-screen grid grid-cols-[224px_minmax(0,1fr)]">
@@ -66,6 +78,12 @@ export const TeacherHomeVisualProof: React.FC = () => {
             {nav.map(([Icon, label, active, badge]) => (
               <button
                 key={label}
+                onClick={() => {
+                  if (label === 'בדיקות') onReview();
+                  else if (label === 'הפרויקטים שלי') onOpenProject();
+                  else if (label === 'יצירת פרויקט') onCreateProject();
+                  else if (label === 'גילוי מסלולים') onExplore();
+                }}
                 className={`w-full h-12 flex items-center gap-3 rounded-[14px] px-4 text-right transition ${active ? 'bg-[#3d725f] shadow-inner' : 'hover:bg-white/7'}`}
               >
                 <Icon size={19} strokeWidth={1.9} />
@@ -110,7 +128,7 @@ export const TeacherHomeVisualProof: React.FC = () => {
               <input className="w-full h-12 rounded-[16px] border border-[#ddd9d0] bg-white pr-12 pl-4 outline-none shadow-sm text-sm" placeholder="חפש פרויקטים, מסלולים, תלמידים..." />
             </div>
 
-            <button className="mr-auto px-4 h-11 rounded-[14px] border border-[#dfe7e2] bg-[#f4f8f5] text-sm">
+            <button onClick={onExplore} className="mr-auto px-4 h-11 rounded-[14px] border border-[#dfe7e2] bg-[#f4f8f5] text-sm hover:bg-[#eaf2ed] transition">
               חזרה לאפליקציה<br /><span className="font-bold">גלה מסלולים</span>
             </button>
           </header>
@@ -128,7 +146,7 @@ export const TeacherHomeVisualProof: React.FC = () => {
                 <div className="text-[46px] font-black leading-none mb-4 tracking-[-0.02em]">בוקר טוב, אלנה ☀</div>
                 <div className="text-[22px] leading-9 max-w-xl text-white/90">כאן מתחילים להפוך מקומות לחוויות משמעותיות של למידה.</div>
                 <div className="mt-5 flex items-center gap-3">
-                  <button className="rounded-[11px] bg-white text-[#173f34] px-4 py-2.5 text-sm font-black shadow-sm">המשך לפרויקט הפעיל</button>
+                  <button onClick={onOpenProject} className="rounded-[11px] bg-white text-[#173f34] px-4 py-2.5 text-sm font-black shadow-sm hover:bg-[#f3f5f1] transition">המשך לפרויקט הפעיל</button>
                   <span className="text-sm text-white/75">סיפורים נסתרים ברחוב המוסלמי</span>
                 </div>
               </div>
@@ -144,22 +162,22 @@ export const TeacherHomeVisualProof: React.FC = () => {
               </div>
               <div className="rounded-[16px] bg-[#fff0e9] px-5.5 h-[104px] flex items-center gap-4.5">
                 <div className="w-14 h-14 rounded-full bg-[#ffe0d7] grid place-items-center text-[#a23625]"><ClipboardCheck size={31} /></div>
-                <div><div className="text-[29px] font-black leading-none text-[#7e2418]">2</div><div className="font-semibold mt-1">עבודות מחכות לבדיקה</div><button className="text-[#c53b27] text-[13px] font-bold mt-2">מעבר לבדיקה ←</button></div>
+                <div><div className="text-[29px] font-black leading-none text-[#7e2418]">2</div><div className="font-semibold mt-1">עבודות מחכות לבדיקה</div><button onClick={onReview} className="text-[#c53b27] text-[13px] font-bold mt-2 hover:underline">מעבר לבדיקה ←</button></div>
               </div>
               <div className="rounded-[16px] bg-[#eaf2fa] px-5.5 h-[104px] flex items-center gap-4.5">
                 <div className="w-14 h-14 rounded-full bg-[#dbeaf6] grid place-items-center text-[#245c8f]"><BookOpen size={31} /></div>
-                <div><div className="text-[29px] font-black leading-none">3</div><div className="font-semibold mt-1">פרויקטים פעילים</div><button className="text-[#245f9e] text-[13px] font-bold mt-2">פתיחת פרויקט ←</button></div>
+                <div><div className="text-[29px] font-black leading-none">3</div><div className="font-semibold mt-1">פרויקטים פעילים</div><button onClick={onOpenProject} className="text-[#245f9e] text-[13px] font-bold mt-2 hover:underline">פתיחת פרויקט ←</button></div>
               </div>
             </section>
 
             <section className="bg-white rounded-[18px] border border-[#e8e3da] shadow-[0_10px_24px_-20px_rgba(35,50,43,.45)] p-4">
               <div className="flex items-center justify-between px-1 mb-3">
                 <div className="flex items-center gap-2"><BookOpen size={21} /><h2 className="text-[21px] font-black">הפרויקטים שלי</h2></div>
-                <button className="text-[#346599] text-sm font-semibold flex items-center gap-1">צפייה בכל הפרויקטים <ArrowLeft size={15} /></button>
+                <button onClick={onOpenProject} className="text-[#346599] text-sm font-semibold flex items-center gap-1 hover:underline">צפייה בכל הפרויקטים <ArrowLeft size={15} /></button>
               </div>
               <div className="grid grid-cols-3 gap-3.5">
                 {projects.map((p) => (
-                  <article key={p.title} className="overflow-hidden rounded-[14px] border border-[#e4ded4] bg-[#fdfcf9] shadow-[0_10px_20px_-18px_rgba(0,0,0,.4)] hover:-translate-y-0.5 transition-transform">
+                  <article onClick={onOpenProject} key={p.title} className="cursor-pointer overflow-hidden rounded-[14px] border border-[#e4ded4] bg-[#fdfcf9] shadow-[0_10px_20px_-18px_rgba(0,0,0,.4)] hover:-translate-y-0.5 hover:shadow-md transition-all">
                     <div className="relative h-[120px]">
                       <img src={p.image} className="h-full w-full object-cover" alt="" />
                       <span className="absolute top-3 right-3 rounded-full bg-[#dcefe4] px-3 py-1 text-xs font-bold text-[#194c3b]">{p.status}</span>
@@ -184,18 +202,18 @@ export const TeacherHomeVisualProof: React.FC = () => {
               <div className="bg-white rounded-[18px] border border-[#e8e3da] shadow-[0_10px_24px_-20px_rgba(35,50,43,.45)] p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-[20px] font-black flex items-center gap-2"><ClipboardCheck size={20} />הגשות אחרונות</h2>
-                  <button className="text-[#346599] text-sm font-semibold">צפייה בכל ההגשות ←</button>
+                  <button onClick={onReview} className="text-[#346599] text-sm font-semibold hover:underline">צפייה בכל ההגשות ←</button>
                 </div>
                 {[
                   ['תחנה 3 — השער העתיק', 'קבוצה 1 • לפני שעה', 'ממתין לבדיקה'],
                   ['מקורות מידע', 'קבוצה 2 • לפני 3 שעות', 'ממתין לבדיקה'],
                   ['סיכום תחנה 1', 'קבוצה 4 • אתמול', 'מאושר'],
                 ].map((r, i) => (
-                  <div key={r[0]} className={`flex items-center gap-3 py-2.5 ${i < 2 ? 'border-b border-[#eee9e1]' : ''}`}>
+                  <button onClick={onReview} key={r[0]} className={`w-full text-right flex items-center gap-3 py-2.5 hover:bg-[#faf9f6] rounded-lg px-1 transition ${i < 2 ? 'border-b border-[#eee9e1]' : ''}`}>
                     <div className="w-14 h-12 rounded-[9px] overflow-hidden bg-[#ece8df]"><img src={projects[i].image} className="w-full h-full object-cover" alt="" /></div>
                     <div className="flex-1"><div className="font-bold text-sm">{r[0]}</div><div className="text-xs text-[#87929b] mt-0.5">{r[1]}</div></div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${i === 2 ? 'bg-[#dff3e9] text-[#216447]' : 'bg-[#fff1cf] text-[#9b6310]'}`}>{r[2]}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -206,7 +224,7 @@ export const TeacherHomeVisualProof: React.FC = () => {
                 <Sparkles className="text-[#276c57]" />
                 <div className="mt-5 max-w-[80%] font-serif text-[23px] leading-9 text-[#34463f]">״כל מקום יכול להפוך לכיתה כשמתחילים להסתכל אחרת.״</div>
                 <div className="mt-4 text-sm text-[#6f7b75]">הפרויקט הבא שלך מתחיל במקום אמיתי.</div>
-                <button className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-[#1f6d54] text-white px-4 py-2.5 text-sm font-bold">
+                <button onClick={onCreateProject} className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-[#1f6d54] text-white px-4 py-2.5 text-sm font-bold hover:bg-[#195d48] transition">
                   יצירת פרויקט חדש <ArrowUpLeft size={16} />
                 </button>
               </div>

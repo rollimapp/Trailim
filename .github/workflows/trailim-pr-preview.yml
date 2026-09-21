@@ -1,7 +1,5 @@
 name: Trailim PR Preview
 
-# PR preview trigger is owned by the base branch workflow.
-
 on:
   push:
     branches:

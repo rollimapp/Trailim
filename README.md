@@ -23,3 +23,5 @@ View your app in AI Studio: https://ai.studio/apps/0cb10921-1f7a-4f57-88cc-9be53
 The `feat/guided-project-mvp-desktop` branch is configured to build and deploy automatically to GitHub Pages through GitHub Actions.
 
 Preview URL: `https://rollimapp.github.io/Trailim/`
+
+Preview automation verified for the guided-project feature branch.

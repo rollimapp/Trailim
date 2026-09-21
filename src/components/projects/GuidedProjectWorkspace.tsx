@@ -344,9 +344,11 @@ const PlanStageStudent: React.FC = () => {
                   placeholder="שם התחנה"
                 />
               </div>
-              <button className="h-9 px-3 border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 hover:bg-slate-50">
-                <ImagePlus className="w-4 h-4" /> הוספת מדיה
-              </button>
+              <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                <span>עורכים תחנה אחת בכל פעם</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                <span>נשמר אוטומטית</span>
+              </div>
             </div>
 
             <div className="border-y border-[#e6e9e4] py-5 mb-5">
@@ -374,7 +376,7 @@ const PlanStageStudent: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-3 h-28 bg-[#eef1ec] border border-[#e1e5df] relative overflow-hidden">
+              <div className="mt-3 h-36 bg-[#eef1ec] border border-[#d9e0da] relative overflow-hidden">
                 <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(#d9ddd8 1px, transparent 1px), linear-gradient(90deg, #d9ddd8 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
                 <div className="absolute inset-0 grid place-items-center">
                   <div className="flex items-center gap-2 bg-white/90 px-3 py-2 shadow-sm text-xs font-bold text-slate-600">
@@ -396,16 +398,25 @@ const PlanStageStudent: React.FC = () => {
                 />
               </label>
 
-              <label className="block">
+              <div className="block">
                 <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
-                <input
-                  value={activeStation.concept}
-                  onChange={(event) => updateActiveStation('concept', event.target.value)}
-                  className="mt-2 w-full h-11 border border-[#dfe4df] px-3 text-sm outline-none focus:border-[#7ba690]"
-                  placeholder="בחרו מהמושגים שחקרתם"
-                />
-                <p className="text-[11px] text-slate-400 mt-2">בהמשך נוכל להפוך את זה לבחירה מתוך רשימת המושגים שכבר נשמרו.</p>
-              </label>
+                <p className="text-[11px] text-slate-400 mt-1">בחרו מתוך המושגים שכבר שמרתם בחקר. לא מקלידים אותם שוב.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => {
+                    const selected = activeStation.concept === concept;
+                    return (
+                      <button
+                        key={concept}
+                        type="button"
+                        onClick={() => updateActiveStation('concept', concept)}
+                        className={`px-3 py-2 text-xs font-black border transition-colors ${selected ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-slate-600 border-[#dfe4df] hover:border-[#9ab6a9]'}`}
+                      >
+                        {concept}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               <label className="block">
                 <span className="text-xs font-black">ההסבר שלכם</span>
@@ -432,10 +443,13 @@ const PlanStageStudent: React.FC = () => {
 
             <div className="mt-6 pt-5 border-t border-[#e6e9e4] flex items-center justify-between gap-5">
               <div className="flex items-center gap-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1.5"><Camera className="w-4 h-4" /> תמונה / וידאו אופציונליים</span>
-                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> lat/lng יישמרו עם התחנה</span>
+                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> המיקום נשמר עם התחנה</span>
+                <span className="text-slate-300">•</span>
+                <span>המדיה אינה חובה</span>
               </div>
-              <span className="text-[11px] text-slate-400">נשמר אוטומטית</span>
+              <button className="h-9 px-3 border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 hover:bg-slate-50">
+                <ImagePlus className="w-4 h-4" /> הוספת תמונה או וידאו
+              </button>
             </div>
           </div>
         </div>

@@ -1,6 +1,10 @@
 name: Trailim PR Preview
 
 on:
+  push:
+    branches:
+      - main
+      - feat/guided-project-mvp-desktop
   pull_request:
     branches:
       - main

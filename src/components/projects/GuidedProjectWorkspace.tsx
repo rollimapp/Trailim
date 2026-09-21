@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
+  Camera,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -9,10 +10,13 @@ import {
   Circle,
   Clock3,
   FileText,
+  ImagePlus,
+  MapPin,
   MapPinned,
   Maximize2,
   MessageSquareText,
   MoreHorizontal,
+  Navigation,
   Plus,
   Pencil,
   Search,
@@ -137,6 +141,326 @@ const statusClass: Record<TeamStatus, string> = {
   waiting: 'text-amber-800 bg-amber-50',
   revision: 'text-rose-700 bg-rose-50',
   approved: 'text-emerald-800 bg-emerald-50',
+};
+
+
+interface DraftStation {
+  id: number;
+  title: string;
+  place: string;
+  notice: string;
+  concept: string;
+  explanation: string;
+  task: string;
+}
+
+const PlanStageStudent: React.FC = () => {
+  const [activity, setActivity] = useState(
+    'בכל תחנה נבקש מהמשתתפים להתבונן בסימנים של קהילה ושייכות במרחב, לבחור דוגמה אחת ולחבר אותה למושג שלמדנו.'
+  );
+  const [stations, setStations] = useState<DraftStation[]>([
+    {
+      id: 1,
+      title: 'החצר והשכנות',
+      place: 'רחוב אגריפס 78, ירושלים',
+      notice: 'שימו לב למרפסות, לחצרות המשותפות ולמרחק בין הבתים.',
+      concept: 'קהילה',
+      explanation: 'המרחב הצפוף יוצר הזדמנויות רבות למפגש יומיומי בין שכנים ומחזק קשרים מקומיים.',
+      task: 'מצאו פרט אחד במרחב שמעודד מפגש בין אנשים והסבירו למה.',
+    },
+    {
+      id: 2,
+      title: 'מסורת במרחב',
+      place: 'נחלאות, ירושלים',
+      notice: 'חפשו סימנים למסורת, בתי כנסת, שלטים או מנהגים שנוכחים במרחב.',
+      concept: 'זהות',
+      explanation: 'הסמלים המקומיים עוזרים לקהילה לספר לעצמה מי היא ולשמר זיכרון משותף.',
+      task: 'בחרו סימן אחד וזהו איזו זהות הוא מבטא.',
+    },
+  ]);
+  const [activeStationId, setActiveStationId] = useState(1);
+
+  const activeStation = stations.find((station) => station.id === activeStationId) ?? stations[0];
+
+  const updateActiveStation = (field: keyof DraftStation, value: string) => {
+    setStations((current) =>
+      current.map((station) =>
+        station.id === activeStation.id ? { ...station, [field]: value } : station,
+      ),
+    );
+  };
+
+  const addStation = () => {
+    if (stations.length >= 3) return;
+    const nextId = Math.max(...stations.map((station) => station.id)) + 1;
+    setStations((current) => [
+      ...current,
+      {
+        id: nextId,
+        title: 'תחנה חדשה',
+        place: '',
+        notice: '',
+        concept: '',
+        explanation: '',
+        task: '',
+      },
+    ]);
+    setActiveStationId(nextId);
+  };
+
+  const completeStations = stations.filter(
+    (station) =>
+      station.title.trim() &&
+      station.place.trim() &&
+      station.notice.trim() &&
+      station.concept.trim() &&
+      station.explanation.trim() &&
+      station.task.trim(),
+  ).length;
+
+  return (
+    <div className="max-w-[1040px] mx-auto px-8 py-8">
+      <div className="mb-7 border-b border-[#dedbd3] pb-5">
+        <div className="flex items-end justify-between gap-8">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-bold mb-1">
+              <span className="text-[#2b755d]">שלב 3 מתוך 6</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-amber-700">תצוגת אבטיפוס</span>
+            </div>
+            <h2 className="text-[31px] font-black tracking-tight">תכנון פעילות ותחנות</h2>
+            <p className="text-sm text-slate-500 mt-2 max-w-2xl leading-6">
+              עכשיו הופכים את החקר למסלול שמישהו אחר יוכל ללמוד ממנו. מגדירים פעילות אחת ובונים את התחנות שבהן היא תתרחש.
+            </p>
+          </div>
+          <div className="text-left shrink-0">
+            <div className="text-[11px] text-slate-400">דרישת המורה</div>
+            <div className="text-sm font-black text-[#1f6d54] mt-1">פעילות + 2–3 תחנות</div>
+          </div>
+        </div>
+      </div>
+
+      <section className="bg-white border-y border-[#dfe4df]">
+        <div className="px-6 py-5 border-b border-[#e7ebe7] grid grid-cols-[minmax(0,1fr)_240px] gap-7">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-[#2b755d]" />
+              <h3 className="text-base font-black">הפעילות שתעבירו בסיור</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-3 leading-5">
+              כתבו בקצרה מה המשתתפים יעשו לאורך הסיור. זו הפעילות הקבוצתית שתוגש לאישור המורה.
+            </p>
+            <textarea
+              value={activity}
+              onChange={(event) => setActivity(event.target.value)}
+              rows={4}
+              className="w-full resize-none border border-[#dfe4df] bg-[#fffefb] p-4 text-sm leading-7 outline-none focus:border-[#7ba690]"
+            />
+          </div>
+          <aside className="border-r border-[#e7ebe7] pr-6">
+            <p className="text-[11px] font-bold text-slate-400 mb-3">החקר שכבר עשיתם</p>
+            <div className="space-y-2.5 text-xs">
+              {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => (
+                <div key={concept} className="flex items-center justify-between border-b border-[#ecefe9] pb-2">
+                  <span className="font-bold text-slate-700">{concept}</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1f6d54]" />
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-4 leading-5">
+              אותם מושגים ימשיכו איתכם לתחנות ולניתוח הסופי — לא כותבים אותם מחדש.
+            </p>
+          </aside>
+        </div>
+
+        <div className="grid grid-cols-[250px_minmax(0,1fr)] min-h-[520px]">
+          <aside className="bg-[#f8f7f2] border-l border-[#e6e3da] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="text-[11px] font-bold text-slate-400">התחנות שלכם</div>
+                <div className="text-sm font-black mt-1">{stations.length} מתוך 3</div>
+              </div>
+              <button
+                onClick={addStation}
+                disabled={stations.length >= 3}
+                className="h-8 px-2.5 bg-[#1B4332] text-white text-[11px] font-black flex items-center gap-1.5 disabled:opacity-35"
+              >
+                <Plus className="w-3.5 h-3.5" /> תחנה
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {stations.map((station, index) => {
+                const complete =
+                  station.title.trim() &&
+                  station.place.trim() &&
+                  station.notice.trim() &&
+                  station.concept.trim() &&
+                  station.explanation.trim() &&
+                  station.task.trim();
+                const active = station.id === activeStation.id;
+                return (
+                  <button
+                    key={station.id}
+                    onClick={() => setActiveStationId(station.id)}
+                    className={`w-full text-right p-3 border-r-2 transition-colors ${active ? 'bg-white border-[#1B4332]' : 'border-transparent hover:bg-white/60'}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className={`mt-0.5 w-6 h-6 rounded-full grid place-items-center text-[11px] font-black shrink-0 ${complete ? 'bg-[#dcebe4] text-[#1f6d54]' : 'bg-[#ebece8] text-slate-500'}`}>
+                        {complete ? <Check className="w-3.5 h-3.5" /> : index + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-black truncate">{station.title || `תחנה ${index + 1}`}</div>
+                        <div className="text-[11px] text-slate-400 truncate mt-1">{station.place || 'עדיין לא נקבע מיקום'}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-[#e2e0d8]">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">תחנות מוכנות</span>
+                <strong>{completeStations} / {stations.length}</strong>
+              </div>
+              <div className="h-1.5 bg-[#e4e5e1] mt-2 overflow-hidden">
+                <div
+                  className="h-full bg-[#2b755d]"
+                  style={{ width: `${stations.length ? (completeStations / stations.length) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          </aside>
+
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-6 mb-5">
+              <div>
+                <div className="text-[11px] font-bold text-[#2b755d]">תחנה {stations.findIndex((station) => station.id === activeStation.id) + 1}</div>
+                <input
+                  value={activeStation.title}
+                  onChange={(event) => updateActiveStation('title', event.target.value)}
+                  className="mt-1 text-xl font-black bg-transparent border-0 outline-none w-full"
+                  placeholder="שם התחנה"
+                />
+              </div>
+              <button className="h-9 px-3 border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 hover:bg-slate-50">
+                <ImagePlus className="w-4 h-4" /> הוספת מדיה
+              </button>
+            </div>
+
+            <div className="border-y border-[#e6e9e4] py-5 mb-5">
+              <div className="flex items-center justify-between gap-5 mb-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#2b755d]" />
+                  <h4 className="text-sm font-black">איפה התחנה נמצאת?</h4>
+                </div>
+                <span className="text-[11px] text-slate-400">המיקום יישמר כנקודה על המפה</span>
+              </div>
+
+              <input
+                value={activeStation.place}
+                onChange={(event) => updateActiveStation('place', event.target.value)}
+                className="w-full h-11 border border-[#dfe4df] px-3 text-sm outline-none focus:border-[#7ba690]"
+                placeholder="חפשו כתובת או מקום"
+              />
+
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <button className="h-10 border border-[#cad8d1] text-[#1f6d54] text-xs font-black flex items-center justify-center gap-2 hover:bg-[#f5f8f6]">
+                  <MapPinned className="w-4 h-4" /> בחירה על המפה
+                </button>
+                <button className="h-10 border border-[#cad8d1] text-[#1f6d54] text-xs font-black flex items-center justify-center gap-2 hover:bg-[#f5f8f6]">
+                  <Navigation className="w-4 h-4" /> השתמשו במיקום הנוכחי
+                </button>
+              </div>
+
+              <div className="mt-3 h-28 bg-[#eef1ec] border border-[#e1e5df] relative overflow-hidden">
+                <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(#d9ddd8 1px, transparent 1px), linear-gradient(90deg, #d9ddd8 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="flex items-center gap-2 bg-white/90 px-3 py-2 shadow-sm text-xs font-bold text-slate-600">
+                    <MapPin className="w-4 h-4 text-[#1f6d54]" /> נקודת התחנה תופיע כאן
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+              <label className="block">
+                <span className="text-xs font-black">מה המשתתפים צריכים לראות או להבין?</span>
+                <textarea
+                  value={activeStation.notice}
+                  onChange={(event) => updateActiveStation('notice', event.target.value)}
+                  rows={4}
+                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  placeholder="למשל: שימו לב לאופן שבו המרחב מעודד מפגש..."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
+                <input
+                  value={activeStation.concept}
+                  onChange={(event) => updateActiveStation('concept', event.target.value)}
+                  className="mt-2 w-full h-11 border border-[#dfe4df] px-3 text-sm outline-none focus:border-[#7ba690]"
+                  placeholder="בחרו מהמושגים שחקרתם"
+                />
+                <p className="text-[11px] text-slate-400 mt-2">בהמשך נוכל להפוך את זה לבחירה מתוך רשימת המושגים שכבר נשמרו.</p>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-black">ההסבר שלכם</span>
+                <textarea
+                  value={activeStation.explanation}
+                  onChange={(event) => updateActiveStation('explanation', event.target.value)}
+                  rows={4}
+                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  placeholder="הסבירו במילים שלכם איך מה שרואים כאן קשור למושג."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-black">מה המשתתף עושה כאן?</span>
+                <textarea
+                  value={activeStation.task}
+                  onChange={(event) => updateActiveStation('task', event.target.value)}
+                  rows={4}
+                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  placeholder="שאלה, משימת תצפית, צילום, בחירה או דיון קצר..."
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-[#e6e9e4] flex items-center justify-between gap-5">
+              <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span className="flex items-center gap-1.5"><Camera className="w-4 h-4" /> תמונה / וידאו אופציונליים</span>
+                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> lat/lng יישמרו עם התחנה</span>
+              </div>
+              <span className="text-[11px] text-slate-400">נשמר אוטומטית</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-[#e6e9e4] flex items-center justify-between gap-6 bg-[#fbfbf8]">
+          <div>
+            <p className="text-xs font-black">לפני שליחה למורה</p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              הפעילות הוגדרה • {stations.length} תחנות נוצרו • {completeStations} תחנות מלאות
+            </p>
+          </div>
+          <button
+            disabled={!activity.trim() || stations.length < 2 || completeStations < stations.length}
+            className="h-10 px-5 bg-[#1B4332] text-white text-xs font-black disabled:bg-[#e7e8e4] disabled:text-slate-400 disabled:cursor-not-allowed"
+          >
+            שליחה לאישור המורה
+          </button>
+        </div>
+      </section>
+
+      <div className="mt-4 text-[11px] text-slate-400">
+        בתלמיד אמיתי השלב הזה ייפתח רק אחרי שהחקר המקדים הושלם ואושר. כאן הוא פתוח לצורך בדיקת העיצוב והזרימה.
+      </div>
+    </div>
+  );
 };
 
 interface GuidedProjectWorkspaceProps {
@@ -310,6 +634,8 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
                 </div>
               </div>
             </div>
+          ) : selectedStageId === 'plan' ? (
+            <PlanStageStudent />
           ) : (
             <div className="max-w-[940px] mx-auto px-8 py-8">
               <div className="mb-8 border-b border-[#dedbd3] pb-5">

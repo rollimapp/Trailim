@@ -1,9 +1,10 @@
 name: Trailim Preview
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/guided-project-mvp-desktop
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +18,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment:
       name: github-pages

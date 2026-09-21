@@ -386,20 +386,27 @@ const PlanStageStudent: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-5 gap-y-5">
-              <label className="block">
-                <span className="text-xs font-black">מה המשתתפים צריכים לראות או להבין?</span>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="relative block p-4 bg-[#f2f8f4] border-2 border-[#2b755d] shadow-[0_10px_24px_-18px_rgba(27,67,50,.75)]">
+                <span className="absolute -top-3 right-4 bg-[#1B4332] text-white text-[10px] font-black px-2.5 py-1 shadow-sm">עכשיו</span>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <span className="text-sm font-black text-[#173f35]">מה המשתתפים צריכים לראות או להבין?</span>
+                  <span className="w-7 h-7 rounded-full bg-[#1B4332] text-white grid place-items-center text-[11px] font-black shrink-0">1</span>
+                </div>
                 <textarea
                   value={activeStation.notice}
                   onChange={(event) => updateActiveStation('notice', event.target.value)}
                   rows={4}
-                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  className="mt-3 w-full resize-none border border-[#cbdcd3] bg-white/90 p-3 text-sm leading-6 outline-none focus:border-[#2b755d] focus:ring-2 focus:ring-[#dcebe4]"
                   placeholder="למשל: שימו לב לאופן שבו המרחב מעודד מפגש..."
                 />
               </label>
 
-              <div className="block">
-                <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
+              <div className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
+                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">2</span>
+                </div>
                 <p className="text-[11px] text-slate-400 mt-1">בחרו מתוך המושגים שכבר שמרתם בחקר. לא מקלידים אותם שוב.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => {
@@ -418,24 +425,30 @@ const PlanStageStudent: React.FC = () => {
                 </div>
               </div>
 
-              <label className="block">
-                <span className="text-xs font-black">ההסבר שלכם</span>
+              <label className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black">ההסבר שלכם</span>
+                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">3</span>
+                </div>
                 <textarea
                   value={activeStation.explanation}
                   onChange={(event) => updateActiveStation('explanation', event.target.value)}
                   rows={4}
-                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  className="mt-3 w-full resize-none border border-[#dfe4df] bg-white p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
                   placeholder="הסבירו במילים שלכם איך מה שרואים כאן קשור למושג."
                 />
               </label>
 
-              <label className="block">
-                <span className="text-xs font-black">מה המשתתף עושה כאן?</span>
+              <label className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-black">מה המשתתף עושה כאן?</span>
+                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">4</span>
+                </div>
                 <textarea
                   value={activeStation.task}
                   onChange={(event) => updateActiveStation('task', event.target.value)}
                   rows={4}
-                  className="mt-2 w-full resize-none border border-[#dfe4df] p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  className="mt-3 w-full resize-none border border-[#dfe4df] bg-white p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
                   placeholder="שאלה, משימת תצפית, צילום, בחירה או דיון קצר..."
                 />
               </label>

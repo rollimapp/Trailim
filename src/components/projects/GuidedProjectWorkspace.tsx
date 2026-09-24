@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -159,6 +159,39 @@ interface DraftStation {
   task: string;
 }
 
+
+let googlePlacesLoader: Promise<void> | null = null;
+
+const loadGooglePlaces = (apiKey: string) => {
+  if (typeof window === 'undefined' || !apiKey) {
+    return Promise.reject(new Error('missing-api-key'));
+  }
+
+  const googleWindow = window as typeof window & { google?: any };
+  if (googleWindow.google?.maps?.places) return Promise.resolve();
+  if (googlePlacesLoader) return googlePlacesLoader;
+
+  googlePlacesLoader = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-trailim-google-maps="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('google-maps-load-failed')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&language=he&region=IL`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.trailimGoogleMaps = 'true';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('google-maps-load-failed'));
+    document.head.appendChild(script);
+  });
+
+  return googlePlacesLoader;
+};
+
 const PlanStageStudent: React.FC = () => {
   const [activity, setActivity] = useState(
     'בכל תחנה נבקש מהמשתתפים להתבונן בסימנים של קהילה ושייכות במרחב, לבחור דוגמה אחת ולחבר אותה למושג שלמדנו.'
@@ -187,8 +220,72 @@ const PlanStageStudent: React.FC = () => {
   const [activePlanningField, setActivePlanningField] = useState<'notice' | 'concept' | 'task' | 'explanation'>('notice');
   const [mapPreviewPlace, setMapPreviewPlace] = useState('רחוב אגריפס 78, ירושלים');
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [placesReady, setPlacesReady] = useState(false);
+  const [placesUnavailable, setPlacesUnavailable] = useState(false);
+  const placeInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeStation = stations.find((station) => station.id === activeStationId) ?? stations[0];
+
+  useEffect(() => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
+    if (!apiKey) {
+      setPlacesUnavailable(true);
+      return;
+    }
+
+    let autocomplete: any;
+    let listener: any;
+    let cancelled = false;
+
+    loadGooglePlaces(apiKey)
+      .then(() => {
+        if (cancelled || !placeInputRef.current) return;
+
+        const googleWindow = window as typeof window & { google?: any };
+        const google = googleWindow.google;
+        if (!google?.maps?.places) {
+          setPlacesUnavailable(true);
+          return;
+        }
+
+        autocomplete = new google.maps.places.Autocomplete(placeInputRef.current, {
+          fields: ['formatted_address', 'geometry', 'name'],
+          componentRestrictions: { country: 'il' },
+        });
+
+        listener = autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          const lat = place.geometry?.location?.lat?.();
+          const lng = place.geometry?.location?.lng?.();
+          const label = place.formatted_address || place.name || placeInputRef.current?.value || '';
+
+          if (typeof lat !== 'number' || typeof lng !== 'number') return;
+
+          setStations((current) =>
+            current.map((station) =>
+              station.id === activeStationId
+                ? { ...station, place: label, lat, lng }
+                : station,
+            ),
+          );
+          setMapPreviewPlace('');
+          setLocationError(null);
+        });
+
+        setPlacesReady(true);
+        setPlacesUnavailable(false);
+      })
+      .catch(() => {
+        if (!cancelled) setPlacesUnavailable(true);
+      });
+
+    return () => {
+      cancelled = true;
+      if (listener?.remove) listener.remove();
+      if (autocomplete) autocomplete = null;
+    };
+  }, [activeStationId]);
 
   const updateActiveStation = (field: keyof DraftStation, value: string) => {
     setStations((current) =>
@@ -416,12 +513,25 @@ const PlanStageStudent: React.FC = () => {
                 <span className="text-[11px] text-slate-400">המיקום יישמר כנקודה על המפה</span>
               </div>
 
-              <input
-                value={activeStation.place}
-                onChange={(event) => updateActiveStation('place', event.target.value)}
-                className="w-full h-11 border border-[#dfe4df] px-3 text-sm outline-none focus:border-[#7ba690]"
-                placeholder="חפשו כתובת או מקום"
-              />
+              <div className="relative">
+                <input
+                  ref={placeInputRef}
+                  value={activeStation.place}
+                  onChange={(event) => updateActiveStation('place', event.target.value)}
+                  className="w-full h-11 border border-[#dfe4df] px-3 pl-28 text-sm outline-none focus:border-[#7ba690]"
+                  placeholder="התחילו להקליד מקום או כתובת, למשל נחלאות"
+                  autoComplete="off"
+                />
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded-full ${placesReady ? 'bg-[#e7f3eb] text-[#1f6d54]' : 'bg-slate-100 text-slate-400'}`}>
+                  {placesReady ? 'הצעות Google פעילות' : 'חיפוש מקום'}
+                </span>
+              </div>
+
+              {placesUnavailable && (
+                <p className="mt-2 text-[11px] text-amber-700">
+                  הצעות בזמן ההקלדה יופעלו אחרי חיבור Google Places API. בינתיים אפשר להקליד כתובת ולהציג אותה במפה.
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <button

@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/guided-project-mvp-desktop
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +16,7 @@ permissions:
 
 concurrency:
   group: trailim-preview-feature
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   preview:

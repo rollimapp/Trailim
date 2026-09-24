@@ -23,7 +23,11 @@ import { Route, Station, ExperienceMode } from './types';
 const MainContent: React.FC = () => {
   const { activeRoute } = useActiveRoute();
   
-  const [activeTab, setActiveTab] = useState<MainTab>('explore');
+  const [activeTab, setActiveTab] = useState<MainTab>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+      ? 'create'
+      : 'explore',
+  );
   const [selectedRouteForDetail, setSelectedRouteForDetail] = useState<Route | null>(null);
   const [selectedRouteStations, setSelectedRouteStations] = useState<Station[] | null>(null);
   const [preStartMode, setPreStartMode] = useState<ExperienceMode | null>(null);

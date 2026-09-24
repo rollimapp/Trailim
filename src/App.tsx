@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ActiveRouteProvider, useActiveRoute } from './context/ActiveRouteContext';
 import { PermissionProvider } from './context/PermissionContext';
@@ -20,21 +20,83 @@ import { TeacherHomeVisualProof } from './components/projects/TeacherHomeVisualP
 import { GuidedProjectWorkspace } from './components/projects/GuidedProjectWorkspace';
 import { Route, Station, ExperienceMode } from './types';
 
+type DesktopWorkspaceView = 'home' | 'project' | 'review';
+
+const readDesktopLocation = (): { tab: MainTab; view: DesktopWorkspaceView } => {
+  if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
+    return { tab: 'explore', view: 'home' };
+  }
+
+  const view = new URLSearchParams(window.location.search).get('view');
+
+  if (view === 'project' || view === 'review' || view === 'home') {
+    return { tab: 'create', view };
+  }
+
+  if (view === 'explore') {
+    return { tab: 'explore', view: 'home' };
+  }
+
+  return { tab: 'create', view: 'home' };
+};
+
 const MainContent: React.FC = () => {
   const { activeRoute } = useActiveRoute();
+  const initialDesktopLocation = readDesktopLocation();
   
-  const [activeTab, setActiveTab] = useState<MainTab>(() =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-      ? 'create'
-      : 'explore',
-  );
+  const [activeTab, setActiveTab] = useState<MainTab>(initialDesktopLocation.tab);
   const [selectedRouteForDetail, setSelectedRouteForDetail] = useState<Route | null>(null);
   const [selectedRouteStations, setSelectedRouteStations] = useState<Station[] | null>(null);
   const [preStartMode, setPreStartMode] = useState<ExperienceMode | null>(null);
   const [isBuildingRoute, setIsBuildingRoute] = useState<boolean>(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [analyticsRoute, setAnalyticsRoute] = useState<Route | null>(null);
-  const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<'home' | 'project' | 'review'>('home');
+  const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<DesktopWorkspaceView>(initialDesktopLocation.view);
+
+  const navigateDesktop = (view: DesktopWorkspaceView | 'explore', replace = false) => {
+    if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
+      if (view === 'explore') setActiveTab('explore');
+      else {
+        setActiveTab('create');
+        setDesktopWorkspaceView(view);
+      }
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', view);
+
+    if (replace) {
+      window.history.replaceState({ trailimView: view }, '', url);
+    } else {
+      window.history.pushState({ trailimView: view }, '', url);
+    }
+
+    if (view === 'explore') {
+      setActiveTab('explore');
+      setDesktopWorkspaceView('home');
+    } else {
+      setActiveTab('create');
+      setDesktopWorkspaceView(view);
+    }
+  };
+
+  useEffect(() => {
+    const syncFromBrowserHistory = () => {
+      const location = readDesktopLocation();
+      setActiveTab(location.tab);
+      setDesktopWorkspaceView(location.view);
+      setSelectedRouteForDetail(null);
+      setSelectedRouteStations(null);
+      setPreStartMode(null);
+      setIsBuildingRoute(false);
+      setEditingRoute(null);
+      setAnalyticsRoute(null);
+    };
+
+    window.addEventListener('popstate', syncFromBrowserHistory);
+    return () => window.removeEventListener('popstate', syncFromBrowserHistory);
+  }, []);
 
   const showStandardNav = !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
   const showDesktopProjectWorkspace = activeTab === 'create' && !activeRoute && !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
@@ -45,22 +107,19 @@ const MainContent: React.FC = () => {
         <div className="hidden lg:block h-full w-full bg-[#F7F7F4]">
           {desktopWorkspaceView === 'home' ? (
             <TeacherHomeVisualProof
-              onReview={() => setDesktopWorkspaceView('review')}
-              onOpenProject={() => setDesktopWorkspaceView('project')}
+              onReview={() => navigateDesktop('review')}
+              onOpenProject={() => navigateDesktop('project')}
               onCreateProject={() => {
                 setEditingRoute(null);
                 setIsBuildingRoute(true);
               }}
-              onExplore={() => {
-                setDesktopWorkspaceView('home');
-                setActiveTab('explore');
-              }}
+              onExplore={() => navigateDesktop('explore')}
             />
           ) : desktopWorkspaceView === 'project' ? (
-            <GuidedProjectWorkspace onBack={() => setDesktopWorkspaceView('home')} />
+            <GuidedProjectWorkspace onBack={() => navigateDesktop('home')} />
           ) : (
             <DesktopTeacherReview
-              onBack={() => setDesktopWorkspaceView('home')}
+              onBack={() => navigateDesktop('home')}
               onPreviewRoute={(route, stations) => {
                 setSelectedRouteStations(stations || null);
                 setSelectedRouteForDetail(route);

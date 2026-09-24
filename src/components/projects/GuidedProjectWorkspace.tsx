@@ -387,27 +387,27 @@ const PlanStageStudent: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <label className="relative block p-4 bg-[#f2f8f4] border-2 border-[#2b755d] shadow-[0_10px_24px_-18px_rgba(27,67,50,.75)]">
+              <label className="relative block p-4 bg-[#eaf5ee] border-2 border-[#1f6d54] shadow-[0_14px_34px_-20px_rgba(27,67,50,.7)] ring-2 ring-[#d7eadf]">
                 <span className="absolute -top-3 right-4 bg-[#1B4332] text-white text-[10px] font-black px-2.5 py-1 shadow-sm">עכשיו</span>
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <span className="text-sm font-black text-[#173f35]">מה המשתתפים צריכים לראות או להבין?</span>
-                  <span className="w-7 h-7 rounded-full bg-[#1B4332] text-white grid place-items-center text-[11px] font-black shrink-0">1</span>
+                  <span className="w-8 h-8 rounded-full bg-[#1B4332] text-white grid place-items-center text-xs font-black shrink-0 shadow-sm">1</span>
                 </div>
                 <textarea
                   value={activeStation.notice}
                   onChange={(event) => updateActiveStation('notice', event.target.value)}
                   rows={4}
-                  className="mt-3 w-full resize-none border border-[#cbdcd3] bg-white/90 p-3 text-sm leading-6 outline-none focus:border-[#2b755d] focus:ring-2 focus:ring-[#dcebe4]"
+                  className="mt-3 w-full resize-none border border-[#bfd4c8] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#2b755d] focus:ring-2 focus:ring-[#dcebe4]"
                   placeholder="למשל: שימו לב לאופן שבו המרחב מעודד מפגש..."
                 />
               </label>
 
-              <div className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+              <div className="block p-4 border border-[#eadfc9] bg-[#f8f2e8]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
-                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">2</span>
+                  <span className="w-7 h-7 rounded-full bg-[#c7b79a] text-white grid place-items-center text-[10px] font-black shrink-0">2</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">בחרו מתוך המושגים שכבר שמרתם בחקר. לא מקלידים אותם שוב.</p>
+                <p className="text-[11px] text-slate-500 mt-1">בחרו מתוך המושגים שכבר שמרתם בחקר. לא מקלידים אותם שוב.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => {
                     const selected = activeStation.concept === concept;
@@ -416,7 +416,7 @@ const PlanStageStudent: React.FC = () => {
                         key={concept}
                         type="button"
                         onClick={() => updateActiveStation('concept', concept)}
-                        className={`px-3 py-2 text-xs font-black border transition-colors ${selected ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-slate-600 border-[#dfe4df] hover:border-[#9ab6a9]'}`}
+                        className={`px-3 py-2 text-xs font-black border transition-colors ${selected ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white/90 text-slate-600 border-[#e2d5bf] hover:border-[#bda987]'}`}
                       >
                         {concept}
                       </button>
@@ -425,30 +425,30 @@ const PlanStageStudent: React.FC = () => {
                 </div>
               </div>
 
-              <label className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+              <label className="block p-4 border border-[#dbe5f1] bg-[#edf3f9]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-black">ההסבר שלכם</span>
-                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">3</span>
+                  <span className="w-7 h-7 rounded-full bg-[#6f8fac] text-white grid place-items-center text-[10px] font-black shrink-0">3</span>
                 </div>
                 <textarea
                   value={activeStation.explanation}
                   onChange={(event) => updateActiveStation('explanation', event.target.value)}
                   rows={4}
-                  className="mt-3 w-full resize-none border border-[#dfe4df] bg-white p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  className="mt-3 w-full resize-none border border-[#d2dfeb] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#7b9bb5]"
                   placeholder="הסבירו במילים שלכם איך מה שרואים כאן קשור למושג."
                 />
               </label>
 
-              <label className="block p-4 border border-[#e1e4df] bg-[#fcfcfa]">
+              <label className="block p-4 border border-[#d5e7dc] bg-[#eef7f2]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-black">מה המשתתף עושה כאן?</span>
-                  <span className="w-6 h-6 rounded-full bg-[#eceee9] text-slate-500 grid place-items-center text-[10px] font-black shrink-0">4</span>
+                  <span className="w-7 h-7 rounded-full bg-[#4f8d72] text-white grid place-items-center text-[10px] font-black shrink-0">4</span>
                 </div>
                 <textarea
                   value={activeStation.task}
                   onChange={(event) => updateActiveStation('task', event.target.value)}
                   rows={4}
-                  className="mt-3 w-full resize-none border border-[#dfe4df] bg-white p-3 text-sm leading-6 outline-none focus:border-[#7ba690]"
+                  className="mt-3 w-full resize-none border border-[#d1e2d8] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#6e9e87]"
                   placeholder="שאלה, משימת תצפית, צילום, בחירה או דיון קצר..."
                 />
               </label>

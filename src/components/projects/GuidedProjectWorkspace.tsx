@@ -380,11 +380,35 @@ const PlanStageStudent: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-3 h-36 bg-[#eef1ec] border border-[#d9e0da] relative overflow-hidden">
-                <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(#d9ddd8 1px, transparent 1px), linear-gradient(90deg, #d9ddd8 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+              <div className="mt-3 h-40 border border-[#d7e2da] relative overflow-hidden bg-[linear-gradient(180deg,#edf7f0_0%,#f7f5ec_58%,#e6f0e8_100%)]">
+                <div className="absolute inset-x-0 bottom-0 h-[58%] opacity-80">
+                  <div className="absolute -right-10 bottom-[-34px] w-[330px] h-[120px] rounded-[50%] bg-[#cfe3d3]" />
+                  <div className="absolute right-[180px] bottom-[-42px] w-[360px] h-[135px] rounded-[50%] bg-[#dce9da]" />
+                  <div className="absolute left-[-40px] bottom-[-38px] w-[390px] h-[130px] rounded-[50%] bg-[#d4e3dc]" />
+                </div>
+
+                <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'linear-gradient(115deg, transparent 46%, rgba(53,105,79,.12) 47%, rgba(53,105,79,.12) 49%, transparent 50%), linear-gradient(25deg, transparent 42%, rgba(53,105,79,.08) 43%, rgba(53,105,79,.08) 45%, transparent 46%)', backgroundSize: '150px 95px, 180px 110px' }} />
+
+                <div className="absolute right-[16%] top-[45%] w-[54%] border-t-[3px] border-dashed border-[#2b755d] rotate-[-6deg] opacity-85" />
+                <div className="absolute right-[14%] top-[40%] w-7 h-7 rounded-full bg-[#1B4332] text-white grid place-items-center shadow-md">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="absolute left-[27%] top-[48%] w-6 h-6 rounded-full bg-[#2b755d] text-white grid place-items-center shadow-sm">
+                  <span className="text-[10px] font-black">2</span>
+                </div>
+
+                <div className="absolute left-[7%] bottom-4 flex items-end gap-2 text-[#326c56] opacity-80">
+                  <Users className="w-8 h-8" />
+                  <Navigation className="w-5 h-5 -rotate-12 mb-1" />
+                </div>
+
+                <div className="absolute top-3 right-3 text-[10px] font-black tracking-wide text-[#2b755d] bg-white/75 px-2 py-1 rounded-full backdrop-blur-sm">
+                  TRAILIM MAP
+                </div>
+
                 <div className="absolute inset-0 grid place-items-center">
-                  <div className="flex items-center gap-2 bg-white/90 px-3 py-2 shadow-sm text-xs font-bold text-slate-600">
-                    <MapPin className="w-4 h-4 text-[#1f6d54]" /> נקודת התחנה תופיע כאן
+                  <div className="flex items-center gap-2 bg-white/92 px-4 py-2.5 shadow-[0_8px_20px_-14px_rgba(27,67,50,.7)] border border-white text-xs font-bold text-slate-700">
+                    <MapPin className="w-4 h-4 text-[#1f6d54]" /> בחרו מיקום כדי להציג את המפה האמיתית
                   </div>
                 </div>
               </div>

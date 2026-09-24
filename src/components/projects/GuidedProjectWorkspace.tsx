@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
@@ -574,10 +574,26 @@ interface GuidedProjectWorkspaceProps {
   onBack?: () => void;
 }
 
+type ProjectMode = 'teacher' | 'student';
+
+const readProjectLocation = (): { mode: ProjectMode; stage: string } => {
+  if (typeof window === 'undefined') return { mode: 'teacher', stage: 'research' };
+
+  const params = new URLSearchParams(window.location.search);
+  const modeParam = params.get('mode');
+  const stageParam = params.get('stage');
+
+  const mode: ProjectMode = modeParam === 'student' ? 'student' : 'teacher';
+  const stage = stages.some((item) => item.id === stageParam) ? (stageParam as string) : 'research';
+
+  return { mode, stage };
+};
+
 export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ onBack }) => {
-  const [mode, setMode] = useState<'teacher' | 'student'>('teacher');
+  const initialProjectLocation = readProjectLocation();
+  const [mode, setMode] = useState<ProjectMode>(initialProjectLocation.mode);
   const [selectedTeamId, setSelectedTeamId] = useState('t1');
-  const [selectedStageId, setSelectedStageId] = useState('research');
+  const [selectedStageId, setSelectedStageId] = useState(initialProjectLocation.stage);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFutureStages, setShowFutureStages] = useState(false);
   const [showCompletedStage, setShowCompletedStage] = useState(false);
@@ -588,6 +604,36 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0];
   const selectedStage = stages.find((stage) => stage.id === selectedStageId) ?? stages[1];
   const researchWordCount = researchText.trim() ? researchText.trim().split(/\s+/).length : 0;
+
+  const navigateProject = (nextMode: ProjectMode, nextStageId: string) => {
+    if (nextMode === mode && nextStageId === selectedStageId) return;
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'project');
+      url.searchParams.set('mode', nextMode);
+      url.searchParams.set('stage', nextStageId);
+      window.history.pushState(
+        { trailimView: 'project', trailimMode: nextMode, trailimStage: nextStageId },
+        '',
+        url,
+      );
+    }
+
+    setMode(nextMode);
+    setSelectedStageId(nextStageId);
+  };
+
+  useEffect(() => {
+    const syncProjectFromBrowserHistory = () => {
+      const location = readProjectLocation();
+      setMode(location.mode);
+      setSelectedStageId(location.stage);
+    };
+
+    window.addEventListener('popstate', syncProjectFromBrowserHistory);
+    return () => window.removeEventListener('popstate', syncProjectFromBrowserHistory);
+  }, []);
 
   const visibleTeams = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -618,13 +664,13 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-slate-100 rounded-lg p-1 text-xs font-semibold">
             <button
-              onClick={() => setMode('teacher')}
+              onClick={() => navigateProject('teacher', selectedStageId)}
               className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'teacher' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               תצוגת מורה
             </button>
             <button
-              onClick={() => setMode('student')}
+              onClick={() => navigateProject('student', selectedStageId)}
               className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'student' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               תצוגת תלמיד
@@ -652,7 +698,7 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
               return (
                 <button
                   key={stage.id}
-                  onClick={() => setSelectedStageId(stage.id)}
+                  onClick={() => navigateProject(mode, stage.id)}
                   className={`w-full px-4 py-3 flex items-start gap-3 text-right border-r-2 transition-colors ${active ? 'bg-emerald-50/60 border-[#1B4332]' : 'border-transparent hover:bg-slate-50'}`}
                 >
                   <div className="pt-0.5 shrink-0">

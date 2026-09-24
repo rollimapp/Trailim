@@ -222,7 +222,8 @@ const PlanStageStudent: React.FC = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [placesReady, setPlacesReady] = useState(false);
   const [placesUnavailable, setPlacesUnavailable] = useState(false);
-  const placeInputRef = useRef<HTMLInputElement | null>(null);
+  const [locationQuery, setLocationQuery] = useState('רחוב אגריפס 78, ירושלים');
+  const [placeSuggestions, setPlaceSuggestions] = useState<Array<{ description: string; placeId: string }>>([]);
 
   const activeStation = stations.find((station) => station.id === activeStationId) ?? stations[0];
 
@@ -234,44 +235,16 @@ const PlanStageStudent: React.FC = () => {
       return;
     }
 
-    let autocomplete: any;
-    let listener: any;
     let cancelled = false;
 
     loadGooglePlaces(apiKey)
       .then(() => {
-        if (cancelled || !placeInputRef.current) return;
-
+        if (cancelled) return;
         const googleWindow = window as typeof window & { google?: any };
-        const google = googleWindow.google;
-        if (!google?.maps?.places) {
+        if (!googleWindow.google?.maps?.places) {
           setPlacesUnavailable(true);
           return;
         }
-
-        autocomplete = new google.maps.places.Autocomplete(placeInputRef.current, {
-          fields: ['formatted_address', 'geometry', 'name'],
-          componentRestrictions: { country: 'il' },
-        });
-
-        listener = autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-          const lat = place.geometry?.location?.lat?.();
-          const lng = place.geometry?.location?.lng?.();
-          const label = place.formatted_address || place.name || placeInputRef.current?.value || '';
-
-          if (typeof lat !== 'number' || typeof lng !== 'number') return;
-
-          setStations((current) =>
-            current.map((station) =>
-              station.id === activeStationId
-                ? { ...station, place: label, lat, lng }
-                : station,
-            ),
-          );
-          setMapPreviewPlace('');
-          setLocationError(null);
-        });
 
         setPlacesReady(true);
         setPlacesUnavailable(false);
@@ -282,10 +255,87 @@ const PlanStageStudent: React.FC = () => {
 
     return () => {
       cancelled = true;
-      if (listener?.remove) listener.remove();
-      if (autocomplete) autocomplete = null;
     };
+  }, []);
+
+  useEffect(() => {
+    setLocationQuery(activeStation.place);
+    setPlaceSuggestions([]);
   }, [activeStationId]);
+
+  useEffect(() => {
+    if (!placesReady) return;
+
+    const query = locationQuery.trim();
+    if (query.length < 2) {
+      setPlaceSuggestions([]);
+      return;
+    }
+
+    const googleWindow = window as typeof window & { google?: any };
+    const google = googleWindow.google;
+    if (!google?.maps?.places) return;
+
+    const timer = window.setTimeout(() => {
+      const service = new google.maps.places.AutocompleteService();
+      service.getPlacePredictions(
+        {
+          input: query,
+          componentRestrictions: { country: 'il' },
+        },
+        (predictions: any[] | null, status: string) => {
+          if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+            setPlaceSuggestions([]);
+            return;
+          }
+
+          setPlaceSuggestions(
+            predictions.slice(0, 5).map((prediction) => ({
+              description: prediction.description,
+              placeId: prediction.place_id,
+            })),
+          );
+        },
+      );
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [locationQuery, placesReady]);
+
+  const selectPlaceSuggestion = (suggestion: { description: string; placeId: string }) => {
+    const googleWindow = window as typeof window & { google?: any };
+    const google = googleWindow.google;
+    if (!google?.maps) return;
+
+    setLocationQuery(suggestion.description);
+    setPlaceSuggestions([]);
+    setLocationError(null);
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ placeId: suggestion.placeId }, (results: any[] | null, status: string) => {
+      const result = results?.[0];
+      const location = result?.geometry?.location;
+
+      if (status !== 'OK' || !location) {
+        setLocationError('לא הצלחנו למקם את המקום שנבחר על המפה.');
+        return;
+      }
+
+      const lat = location.lat();
+      const lng = location.lng();
+      const label = result.formatted_address || suggestion.description;
+
+      setStations((current) =>
+        current.map((station) =>
+          station.id === activeStationId
+            ? { ...station, place: label, lat, lng }
+            : station,
+        ),
+      );
+      setLocationQuery(label);
+      setMapPreviewPlace('');
+    });
+  };
 
   const updateActiveStation = (field: keyof DraftStation, value: string) => {
     setStations((current) =>
@@ -339,8 +389,20 @@ const PlanStageStudent: React.FC = () => {
     : 'https://www.google.com/maps';
 
   const previewTypedLocation = () => {
+    const typedPlace = locationQuery.trim();
     setLocationError(null);
-    setMapPreviewPlace(activeStation.place.trim());
+    setPlaceSuggestions([]);
+
+    if (!typedPlace) return;
+
+    setStations((current) =>
+      current.map((station) =>
+        station.id === activeStation.id
+          ? { ...station, place: typedPlace, lat: undefined, lng: undefined }
+          : station,
+      ),
+    );
+    setMapPreviewPlace(typedPlace);
   };
 
   const useCurrentLocation = () => {
@@ -363,6 +425,7 @@ const PlanStageStudent: React.FC = () => {
           ),
         );
         setMapPreviewPlace('');
+        setLocationQuery(activeStation.place || 'המיקום הנוכחי');
       },
       () => {
         setLocationError('לא הצלחנו לקבל את המיקום. בדקו שאישרתם הרשאת מיקום לדפדפן.');
@@ -513,19 +576,37 @@ const PlanStageStudent: React.FC = () => {
                 <span className="text-[11px] text-slate-400">המיקום יישמר כנקודה על המפה</span>
               </div>
 
-              <div className="relative">
+              <div className="relative z-30">
                 <input
-                  key={activeStation.id}
-                  ref={placeInputRef}
-                  defaultValue={activeStation.place}
-                  onInput={(event) => updateActiveStation('place', (event.currentTarget as HTMLInputElement).value)}
-                  className="w-full h-11 border border-[#dfe4df] px-3 pl-28 text-sm outline-none focus:border-[#7ba690]"
+                  value={locationQuery}
+                  onChange={(event) => setLocationQuery(event.target.value)}
+                  onFocus={() => {
+                    if (locationQuery.trim().length >= 2) setLocationQuery((value) => value);
+                  }}
+                  className="w-full h-11 border border-[#dfe4df] px-3 pl-28 text-sm outline-none focus:border-[#7ba690] bg-white"
                   placeholder="התחילו להקליד מקום או כתובת, למשל נחלאות"
                   autoComplete="off"
                 />
-                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded-full ${placesReady ? 'bg-[#e7f3eb] text-[#1f6d54]' : 'bg-slate-100 text-slate-400'}`}>
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded-full pointer-events-none ${placesReady ? 'bg-[#e7f3eb] text-[#1f6d54]' : 'bg-slate-100 text-slate-400'}`}>
                   {placesReady ? 'הצעות Google פעילות' : 'חיפוש מקום'}
                 </span>
+
+                {placeSuggestions.length > 0 && (
+                  <div className="absolute top-[46px] right-0 left-0 bg-white border border-[#d7e0da] shadow-xl z-50 overflow-hidden">
+                    {placeSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.placeId}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectPlaceSuggestion(suggestion)}
+                        className="w-full text-right px-3 py-3 border-b last:border-b-0 border-[#edf0ed] hover:bg-[#f4f8f5] flex items-start gap-2"
+                      >
+                        <MapPin className="w-4 h-4 mt-0.5 text-[#2b755d] shrink-0" />
+                        <span className="text-xs leading-5 text-slate-700">{suggestion.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {placesUnavailable && (

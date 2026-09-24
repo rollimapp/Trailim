@@ -954,6 +954,236 @@ const PlanStageStudent: React.FC = () => {
   );
 };
 
+
+const FieldStageStudent: React.FC = () => {
+  const fieldStations = [
+    {
+      id: 1,
+      title: 'החצר והשכנות',
+      place: 'רחוב אגריפס 78, ירושלים',
+      distance: '120 מ׳',
+      concept: 'קהילה',
+      task: 'מצאו פרט אחד במרחב שמעודד מפגש בין אנשים והסבירו למה.',
+      notice: 'שימו לב למרפסות, לחצרות המשותפות ולמרחק בין הבתים.',
+      mapQuery: 'Agripas 78 Jerusalem',
+    },
+    {
+      id: 2,
+      title: 'מסורת במרחב',
+      place: 'נחלאות, ירושלים',
+      distance: '350 מ׳',
+      concept: 'זהות',
+      task: 'בחרו סימן אחד במרחב וזהו איזו זהות הוא מבטא.',
+      notice: 'חפשו סימנים למסורת, בתי כנסת, שלטים או מנהגים שנוכחים במרחב.',
+      mapQuery: 'Nachlaot Jerusalem',
+    },
+  ];
+
+  const [currentStationIndex, setCurrentStationIndex] = useState(0);
+  const [arrived, setArrived] = useState(false);
+  const [observation, setObservation] = useState('');
+  const [completedStations, setCompletedStations] = useState<number[]>([]);
+
+  const station = fieldStations[currentStationIndex];
+  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(station.mapQuery)}&z=16&output=embed`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.mapQuery)}`;
+
+  const completeCurrentStation = () => {
+    setCompletedStations((current) =>
+      current.includes(station.id) ? current : [...current, station.id],
+    );
+
+    if (currentStationIndex < fieldStations.length - 1) {
+      setCurrentStationIndex((index) => index + 1);
+      setArrived(false);
+      setObservation('');
+    }
+  };
+
+  return (
+    <div className="min-h-full bg-[#eef3ef] px-4 py-6 md:px-8 md:py-8">
+      <div className="mx-auto max-w-[1180px] grid xl:grid-cols-[minmax(0,1fr)_420px] gap-8 items-start">
+        <section className="hidden xl:block bg-white border border-[#dfe6e1] p-7">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="text-[11px] font-black text-[#2b755d]">שלב 4 מתוך 6</div>
+              <h2 className="text-[28px] font-black mt-1">סיור בשטח</h2>
+              <p className="text-sm text-slate-500 mt-2 max-w-xl leading-6">
+                במסך הזה התלמידים עובדים מהטלפון: מגיעים לתחנה, מבצעים את המשימה ומתעדים מה מצאו.
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-[#dcece3] text-[#1B4332] grid place-items-center">
+              <Navigation className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-4">
+            {fieldStations.map((item, index) => {
+              const done = completedStations.includes(item.id);
+              const active = index === currentStationIndex;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setCurrentStationIndex(index);
+                    setArrived(done);
+                    setObservation('');
+                  }}
+                  className={`text-right p-4 border transition-all ${active ? 'border-[#1B4332] bg-[#eef7f2] shadow-sm' : 'border-[#e1e6e2] bg-[#fafbf9]'}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`w-8 h-8 rounded-full grid place-items-center text-xs font-black ${done ? 'bg-[#1B4332] text-white' : active ? 'bg-[#dcece3] text-[#1B4332]' : 'bg-[#ecefeb] text-slate-500'}`}>
+                      {done ? <Check className="w-4 h-4" /> : item.id}
+                    </span>
+                    <span className="text-[11px] text-slate-400">{active ? 'תחנה נוכחית' : done ? 'הושלמה' : 'בהמשך'}</span>
+                  </div>
+                  <h3 className="font-black mt-4">{item.title}</h3>
+                  <p className="text-xs text-slate-500 mt-1">{item.place}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 border-t border-[#e5e9e6] pt-5">
+            <p className="text-xs font-black">עיקרון השטח</p>
+            <p className="text-sm text-slate-500 mt-2 leading-6">
+              בזמן הסיור לא מציגים לתלמיד טופס ארוך. בכל רגע הוא רואה רק את התחנה הנוכחית, מה עליו לעשות ומה כדאי לתעד.
+            </p>
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-[420px] overflow-hidden rounded-[28px] border-[8px] border-[#173b30] bg-[#f8faf8] shadow-[0_24px_60px_-28px_rgba(20,55,43,.55)]">
+          <div className="bg-[#1B4332] text-white px-5 pt-4 pb-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-bold text-emerald-100">סיור בשטח • נחלאות דרך מדעי החברה</div>
+                <h2 className="text-[20px] font-black mt-1">תחנה {currentStationIndex + 1} מתוך {fieldStations.length}</h2>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-white/12 grid place-items-center">
+                <MapPin className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="mt-4 h-1.5 rounded-full bg-white/15 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#8fd3ad] transition-all"
+                style={{ width: `${((currentStationIndex + (completedStations.includes(station.id) ? 1 : 0)) / fieldStations.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="relative h-[180px] bg-[#e7eee9]">
+            <iframe
+              title={`מפת ${station.title}`}
+              src={mapUrl}
+              className="absolute inset-0 w-full h-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <div className="absolute top-3 right-3 bg-white/95 px-3 py-2 shadow-sm text-[11px] font-black text-[#1B4332]">
+              {station.distance} מהתחנה
+            </div>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-3 left-3 bg-white/95 px-3 py-2 shadow-sm text-[11px] font-black text-[#1B4332] flex items-center gap-1.5"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              ניווט
+            </a>
+          </div>
+
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-black text-[#2b755d]">{station.concept}</div>
+                <h3 className="text-[22px] font-black mt-1">{station.title}</h3>
+                <p className="text-xs text-slate-500 mt-1">{station.place}</p>
+              </div>
+              <span className="w-9 h-9 rounded-full bg-[#e0eee6] text-[#1B4332] grid place-items-center font-black">
+                {station.id}
+              </span>
+            </div>
+
+            {!arrived ? (
+              <div className="mt-5">
+                <div className="bg-[#eef6f1] border border-[#d6e6dc] p-4">
+                  <div className="flex items-center gap-2 text-[#1B4332]">
+                    <Eye className="w-4 h-4" />
+                    <span className="text-xs font-black">כשתגיעו, הסתכלו סביב</span>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-6 mt-2">{station.notice}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setArrived(true)}
+                  className="mt-4 w-full h-12 bg-[#1B4332] text-white font-black text-sm flex items-center justify-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  הגענו לתחנה
+                </button>
+                <p className="text-center text-[10px] text-slate-400 mt-2">בגרסה המלאה נוכל לאמת הגעה גם לפי GPS.</p>
+              </div>
+            ) : (
+              <div className="mt-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-7 h-7 rounded-full bg-[#dfece5] text-[#1B4332] grid place-items-center">
+                    <Check className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <div className="text-[10px] font-black text-[#2b755d]">הגעתם</div>
+                    <div className="text-sm font-black">עכשיו מבצעים את המשימה</div>
+                  </div>
+                </div>
+
+                <div className="bg-[#fff8e9] border border-[#eadfbd] p-4">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-black">המשימה שלכם</span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-6 mt-2">{station.task}</p>
+                </div>
+
+                <label className="block mt-4">
+                  <span className="text-xs font-black">מה גיליתם?</span>
+                  <textarea
+                    value={observation}
+                    onChange={(event) => setObservation(event.target.value)}
+                    rows={3}
+                    className="mt-2 w-full resize-none border border-[#d8e0da] bg-white p-3 text-sm leading-6 outline-none focus:border-[#2b755d]"
+                    placeholder="כתבו תצפית קצרה או ממצא מהשטח..."
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="mt-3 w-full h-11 border border-dashed border-[#a9c4b5] text-[#1B4332] text-xs font-black flex items-center justify-center gap-2 bg-[#f8fbf9]"
+                >
+                  <Camera className="w-4 h-4" />
+                  הוספת צילום מהשטח
+                </button>
+
+                <button
+                  type="button"
+                  onClick={completeCurrentStation}
+                  disabled={!observation.trim()}
+                  className="mt-4 w-full h-12 bg-[#1B4332] text-white font-black text-sm flex items-center justify-center gap-2 disabled:bg-[#dfe4e1] disabled:text-slate-400"
+                >
+                  {currentStationIndex < fieldStations.length - 1 ? 'שמירה ומעבר לתחנה הבאה' : 'סיום הסיור'}
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+};
+
 interface GuidedProjectWorkspaceProps {
   onBack?: () => void;
 }
@@ -1173,6 +1403,8 @@ export const GuidedProjectWorkspace: React.FC<GuidedProjectWorkspaceProps> = ({ 
             </div>
           ) : selectedStageId === 'plan' ? (
             <PlanStageStudent />
+          ) : selectedStageId === 'field' ? (
+            <FieldStageStudent />
           ) : (
             <div className="max-w-[940px] mx-auto px-8 py-8">
               <div className="mb-8 border-b border-[#dedbd3] pb-5">

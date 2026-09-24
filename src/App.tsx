@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ActiveRouteProvider, useActiveRoute } from './context/ActiveRouteContext';
 import { PermissionProvider } from './context/PermissionContext';
@@ -11,29 +11,127 @@ import { ActiveRouteContainer } from './components/active/ActiveRouteContainer';
 import { CreatorDashboardView } from './components/creator/CreatorDashboardView';
 import { RouteBuilderContainer } from './components/creator/RouteBuilderContainer';
 import { ReviewQueueView } from './components/review/ReviewQueueView';
+import { DesktopTeacherReview } from './components/review/DesktopTeacherReview';
 import { MyActivityView } from './components/activity/MyActivityView';
 import { CommunityView } from './components/community/CommunityView';
 import { ProfileView } from './components/profile/ProfileView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
+import { TeacherHomeVisualProof } from './components/projects/TeacherHomeVisualProof';
+import { GuidedProjectWorkspace } from './components/projects/GuidedProjectWorkspace';
 import { Route, Station, ExperienceMode } from './types';
+
+type DesktopWorkspaceView = 'home' | 'project' | 'review';
+
+const readDesktopLocation = (): { tab: MainTab; view: DesktopWorkspaceView } => {
+  if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
+    return { tab: 'explore', view: 'home' };
+  }
+
+  const view = new URLSearchParams(window.location.search).get('view');
+
+  if (view === 'project' || view === 'review' || view === 'home') {
+    return { tab: 'create', view };
+  }
+
+  if (view === 'explore') {
+    return { tab: 'explore', view: 'home' };
+  }
+
+  return { tab: 'create', view: 'home' };
+};
 
 const MainContent: React.FC = () => {
   const { activeRoute } = useActiveRoute();
+  const initialDesktopLocation = readDesktopLocation();
   
-  const [activeTab, setActiveTab] = useState<MainTab>('explore');
+  const [activeTab, setActiveTab] = useState<MainTab>(initialDesktopLocation.tab);
   const [selectedRouteForDetail, setSelectedRouteForDetail] = useState<Route | null>(null);
   const [selectedRouteStations, setSelectedRouteStations] = useState<Station[] | null>(null);
   const [preStartMode, setPreStartMode] = useState<ExperienceMode | null>(null);
   const [isBuildingRoute, setIsBuildingRoute] = useState<boolean>(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [analyticsRoute, setAnalyticsRoute] = useState<Route | null>(null);
+  const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<DesktopWorkspaceView>(initialDesktopLocation.view);
+
+  const navigateDesktop = (view: DesktopWorkspaceView | 'explore', replace = false) => {
+    if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
+      if (view === 'explore') setActiveTab('explore');
+      else {
+        setActiveTab('create');
+        setDesktopWorkspaceView(view);
+      }
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', view);
+
+    if (replace) {
+      window.history.replaceState({ trailimView: view }, '', url);
+    } else {
+      window.history.pushState({ trailimView: view }, '', url);
+    }
+
+    if (view === 'explore') {
+      setActiveTab('explore');
+      setDesktopWorkspaceView('home');
+    } else {
+      setActiveTab('create');
+      setDesktopWorkspaceView(view);
+    }
+  };
+
+  useEffect(() => {
+    const syncFromBrowserHistory = () => {
+      const location = readDesktopLocation();
+      setActiveTab(location.tab);
+      setDesktopWorkspaceView(location.view);
+      setSelectedRouteForDetail(null);
+      setSelectedRouteStations(null);
+      setPreStartMode(null);
+      setIsBuildingRoute(false);
+      setEditingRoute(null);
+      setAnalyticsRoute(null);
+    };
+
+    window.addEventListener('popstate', syncFromBrowserHistory);
+    return () => window.removeEventListener('popstate', syncFromBrowserHistory);
+  }, []);
 
   const showStandardNav = !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
+  const showDesktopProjectWorkspace = activeTab === 'create' && !activeRoute && !selectedRouteForDetail && !isBuildingRoute && !analyticsRoute;
 
   return (
-    <div className="h-[100dvh] w-full bg-slate-900 text-[#1D242B] font-sans flex items-center justify-center p-0 sm:py-6 sm:px-4 overflow-hidden">
-      {/* Mobile App Shell Frame */}
-      <div className="w-full sm:w-[410px] md:w-[430px] h-full sm:h-[860px] sm:max-h-[92vh] max-h-[100dvh] bg-[#FAF9F6] relative flex flex-col sm:rounded-[48px] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] sm:border-[10px] sm:border-slate-800 overflow-hidden">
+    <div className="h-[100dvh] w-full bg-slate-900 text-[#1D242B] font-sans overflow-hidden">
+      {showDesktopProjectWorkspace && (
+        <div className="hidden lg:block h-full w-full bg-[#F7F7F4]">
+          {desktopWorkspaceView === 'home' ? (
+            <TeacherHomeVisualProof
+              onReview={() => navigateDesktop('review')}
+              onOpenProject={() => navigateDesktop('project')}
+              onCreateProject={() => {
+                setEditingRoute(null);
+                setIsBuildingRoute(true);
+              }}
+              onExplore={() => navigateDesktop('explore')}
+            />
+          ) : desktopWorkspaceView === 'project' ? (
+            <GuidedProjectWorkspace onBack={() => navigateDesktop('home')} />
+          ) : (
+            <DesktopTeacherReview
+              onBack={() => navigateDesktop('home')}
+              onPreviewRoute={(route, stations) => {
+                setSelectedRouteStations(stations || null);
+                setSelectedRouteForDetail(route);
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      <div className={`${showDesktopProjectWorkspace ? 'lg:hidden' : 'flex'} h-full w-full items-center justify-center p-0 sm:py-6 sm:px-4`}>
+        {/* Existing mobile-first shell remains unchanged below desktop breakpoint. */}
+        <div className="w-full sm:w-[410px] md:w-[430px] h-full sm:h-[860px] sm:max-h-[92vh] max-h-[100dvh] bg-[#FAF9F6] relative flex flex-col sm:rounded-[48px] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] sm:border-[10px] sm:border-slate-800 overflow-hidden">
         
         {/* Hardware Notch / Camera Pill on Desktop */}
         <div className="hidden sm:flex absolute top-0 left-1/2 -translate-x-1/2 w-32 h-4 bg-slate-800 rounded-b-xl z-50 pointer-events-none items-center justify-center">
@@ -162,6 +260,7 @@ const MainContent: React.FC = () => {
           </div>
         )}
 
+        </div>
       </div>
     </div>
   );

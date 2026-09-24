@@ -1,5 +1,7 @@
 name: Trailim Preview
 
+# Google Maps secret enabled
+
 on:
   push:
     branches:

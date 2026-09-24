@@ -223,7 +223,7 @@ const PlanStageStudent: React.FC = () => {
   ).length;
 
   return (
-    <div className="max-w-[1040px] mx-auto px-8 py-8">
+    <div className="w-full max-w-[1380px] mx-auto px-8 xl:px-10 py-8">
       <div className="mb-7 border-b border-[#dedbd3] pb-5">
         <div className="flex items-end justify-between gap-8">
           <div>
@@ -277,7 +277,7 @@ const PlanStageStudent: React.FC = () => {
           </aside>
         </div>
 
-        <div className="grid grid-cols-[250px_minmax(0,1fr)] min-h-[520px]">
+        <div className="grid grid-cols-[220px_minmax(0,1fr)] min-h-[520px]">
           <aside className="bg-[#f8f7f2] border-l border-[#e6e3da] p-4">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -337,7 +337,7 @@ const PlanStageStudent: React.FC = () => {
             </div>
           </aside>
 
-          <div className="p-6">
+          <div className="p-6 xl:p-8">
             <div className="flex items-start justify-between gap-6 mb-5">
               <div>
                 <div className="text-[11px] font-bold text-[#2b755d]">תחנה {stations.findIndex((station) => station.id === activeStation.id) + 1}</div>
@@ -410,7 +410,7 @@ const PlanStageStudent: React.FC = () => {
               </div>
 
               <div className="relative">
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-4">
                   {([
                     {
                       id: 'notice' as const,
@@ -476,7 +476,7 @@ const PlanStageStudent: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setActivePlanningField(card.id)}
-                          className={`group relative w-full min-h-[196px] overflow-hidden text-right p-4 border bg-gradient-to-b transition-all duration-200 ${card.bg} ${active ? 'border-2 border-[#1B4332] shadow-[0_16px_34px_-22px_rgba(27,67,50,.7)] -translate-y-1' : card.border + ' hover:-translate-y-0.5 hover:shadow-md'}`}
+                          className={`group relative w-full min-h-[218px] overflow-hidden text-right p-5 border bg-gradient-to-b transition-all duration-200 ${card.bg} ${active ? 'border-2 border-[#1B4332] shadow-[0_16px_34px_-22px_rgba(27,67,50,.7)] -translate-y-1' : card.border + ' hover:-translate-y-0.5 hover:shadow-md'}`}
                         >
                           {active && (
                             <span className="absolute top-0 right-0 bg-[#1B4332] text-white text-[9px] font-black px-3 py-1.5">
@@ -485,7 +485,7 @@ const PlanStageStudent: React.FC = () => {
                           )}
 
                           <div className="flex items-start justify-between gap-3">
-                            <span className={`w-10 h-10 rounded-full ${card.iconBg} ${card.iconColor} grid place-items-center border border-white/70 shadow-sm`}>
+                            <span className={`w-12 h-12 rounded-full ${card.iconBg} ${card.iconColor} grid place-items-center border border-white/70 shadow-sm`}>
                               {card.icon}
                             </span>
                             <span className={`w-8 h-8 rounded-full ${active ? 'bg-[#1B4332]' : card.badge} text-white grid place-items-center text-xs font-black shadow-sm`}>
@@ -495,8 +495,8 @@ const PlanStageStudent: React.FC = () => {
 
                           <div className="mt-4">
                             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{card.subtitle}</div>
-                            <h5 className="text-[14px] font-black mt-1.5 leading-5 text-slate-800">{card.title}</h5>
-                            <p className="text-[11px] text-slate-500 mt-2.5 leading-5 line-clamp-3">{card.preview}</p>
+                            <h5 className="text-[15px] font-black mt-1.5 leading-6 text-slate-800">{card.title}</h5>
+                            <p className="text-[12px] text-slate-500 mt-2.5 leading-5 line-clamp-3">{card.preview}</p>
                           </div>
 
                           <div className={`absolute bottom-0 right-0 left-0 h-1 ${active ? 'bg-[#1B4332]' : 'bg-transparent group-hover:bg-black/5'}`} />

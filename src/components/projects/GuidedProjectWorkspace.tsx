@@ -515,9 +515,10 @@ const PlanStageStudent: React.FC = () => {
 
               <div className="relative">
                 <input
+                  key={activeStation.id}
                   ref={placeInputRef}
-                  value={activeStation.place}
-                  onChange={(event) => updateActiveStation('place', event.target.value)}
+                  defaultValue={activeStation.place}
+                  onInput={(event) => updateActiveStation('place', (event.currentTarget as HTMLInputElement).value)}
                   className="w-full h-11 border border-[#dfe4df] px-3 pl-28 text-sm outline-none focus:border-[#7ba690]"
                   placeholder="התחילו להקליד מקום או כתובת, למשל נחלאות"
                   autoComplete="off"

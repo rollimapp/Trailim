@@ -179,6 +179,7 @@ const PlanStageStudent: React.FC = () => {
     },
   ]);
   const [activeStationId, setActiveStationId] = useState(1);
+  const [activePlanningField, setActivePlanningField] = useState<'notice' | 'concept' | 'task' | 'explanation'>('notice');
 
   const activeStation = stations.find((station) => station.id === activeStationId) ?? stations[0];
 
@@ -386,72 +387,151 @@ const PlanStageStudent: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <label className="relative block p-4 bg-[#eaf5ee] border-2 border-[#1f6d54] shadow-[0_14px_34px_-20px_rgba(27,67,50,.7)] ring-2 ring-[#d7eadf]">
-                <span className="absolute -top-3 right-4 bg-[#1B4332] text-white text-[10px] font-black px-2.5 py-1 shadow-sm">עכשיו</span>
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <span className="text-sm font-black text-[#173f35]">מה המשתתפים צריכים לראות או להבין?</span>
-                  <span className="w-8 h-8 rounded-full bg-[#1B4332] text-white grid place-items-center text-xs font-black shrink-0 shadow-sm">1</span>
+            <div className="mb-5">
+              <div className="flex items-end justify-between gap-4 mb-3">
+                <div>
+                  <h4 className="text-sm font-black text-[#173f35]">תכנון התחנה במסלול</h4>
+                  <p className="text-[11px] text-slate-400 mt-1">עברו בין ארבעת הצעדים. רק הצעד הפעיל נפתח לעריכה מלאה.</p>
                 </div>
-                <textarea
-                  value={activeStation.notice}
-                  onChange={(event) => updateActiveStation('notice', event.target.value)}
-                  rows={4}
-                  className="mt-3 w-full resize-none border border-[#bfd4c8] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#2b755d] focus:ring-2 focus:ring-[#dcebe4]"
-                  placeholder="למשל: שימו לב לאופן שבו המרחב מעודד מפגש..."
-                />
-              </label>
-
-              <div className="block p-4 border border-[#eadfc9] bg-[#f8f2e8]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black">לאיזה מושג או תיאוריה זה מתחבר?</span>
-                  <span className="w-7 h-7 rounded-full bg-[#c7b79a] text-white grid place-items-center text-[10px] font-black shrink-0">2</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">בחרו מתוך המושגים שכבר שמרתם בחקר. לא מקלידים אותם שוב.</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => {
-                    const selected = activeStation.concept === concept;
-                    return (
-                      <button
-                        key={concept}
-                        type="button"
-                        onClick={() => updateActiveStation('concept', concept)}
-                        className={`px-3 py-2 text-xs font-black border transition-colors ${selected ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white/90 text-slate-600 border-[#e2d5bf] hover:border-[#bda987]'}`}
-                      >
-                        {concept}
-                      </button>
-                    );
-                  })}
-                </div>
+                <span className="text-[11px] font-bold text-[#2b755d]">שלב {(['notice','concept','task','explanation'] as const).indexOf(activePlanningField) + 1} מתוך 4</span>
               </div>
 
-              <label className="block p-4 border border-[#dbe5f1] bg-[#edf3f9]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black">ההסבר שלכם</span>
-                  <span className="w-7 h-7 rounded-full bg-[#6f8fac] text-white grid place-items-center text-[10px] font-black shrink-0">3</span>
-                </div>
-                <textarea
-                  value={activeStation.explanation}
-                  onChange={(event) => updateActiveStation('explanation', event.target.value)}
-                  rows={4}
-                  className="mt-3 w-full resize-none border border-[#d2dfeb] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#7b9bb5]"
-                  placeholder="הסבירו במילים שלכם איך מה שרואים כאן קשור למושג."
-                />
-              </label>
+              <div className="grid grid-cols-4 gap-3">
+                {([
+                  {
+                    id: 'notice' as const,
+                    number: 1,
+                    title: 'מה רואים במרחב?',
+                    preview: activeStation.notice || 'תארו בקצרה מה המשתתפים צריכים לראות במקום.',
+                    bg: 'bg-[#eef7f2]',
+                    border: 'border-[#d6e8dd]',
+                    badge: 'bg-[#2f7b61]',
+                    icon: <MapPin className="w-5 h-5" />,
+                  },
+                  {
+                    id: 'concept' as const,
+                    number: 2,
+                    title: 'לאיזה מושג זה מתחבר?',
+                    preview: activeStation.concept ? `המושג שנבחר: ${activeStation.concept}` : 'בחרו מושג או תיאוריה מתוך החקר.',
+                    bg: 'bg-[#f7f1e7]',
+                    border: 'border-[#eadfc9]',
+                    badge: 'bg-[#b39a73]',
+                    icon: <Search className="w-5 h-5" />,
+                  },
+                  {
+                    id: 'task' as const,
+                    number: 3,
+                    title: 'מה המשתתפים עושים כאן?',
+                    preview: activeStation.task || 'הגדירו משימה, שאלה, תצפית או דיון קצר.',
+                    bg: 'bg-[#edf3f9]',
+                    border: 'border-[#dbe5f1]',
+                    badge: 'bg-[#6f8fac]',
+                    icon: <Users className="w-5 h-5" />,
+                  },
+                  {
+                    id: 'explanation' as const,
+                    number: 4,
+                    title: 'ההסבר שלכם',
+                    preview: activeStation.explanation || 'הסבירו איך המקום מתחבר למושג שבחרתם.',
+                    bg: 'bg-[#edf7f2]',
+                    border: 'border-[#d5e7dc]',
+                    badge: 'bg-[#4f8d72]',
+                    icon: <FileText className="w-5 h-5" />,
+                  },
+                ]).map((card) => {
+                  const active = activePlanningField === card.id;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => setActivePlanningField(card.id)}
+                      className={`relative min-h-[168px] text-right p-4 border transition-all ${card.bg} ${active ? 'border-2 border-[#1B4332] shadow-[0_14px_32px_-20px_rgba(27,67,50,.65)] -translate-y-1' : card.border + ' hover:-translate-y-0.5 hover:shadow-sm'}`}
+                    >
+                      {active && (
+                        <span className="absolute -top-2.5 right-3 bg-[#1B4332] text-white text-[9px] font-black px-2 py-1 shadow-sm">עכשיו</span>
+                      )}
+                      <div className="flex items-start justify-between gap-3">
+                        <span className={`w-8 h-8 rounded-full ${active ? 'bg-[#1B4332]' : card.badge} text-white grid place-items-center text-xs font-black shrink-0`}>{card.number}</span>
+                        <span className={`shrink-0 ${active ? 'text-[#1B4332]' : 'text-slate-500'}`}>{card.icon}</span>
+                      </div>
+                      <h5 className="text-[13px] font-black mt-4 leading-5 text-slate-800">{card.title}</h5>
+                      <p className="text-[11px] text-slate-500 mt-2 leading-5 line-clamp-3">{card.preview}</p>
+                    </button>
+                  );
+                })}
+              </div>
 
-              <label className="block p-4 border border-[#d5e7dc] bg-[#eef7f2]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black">מה המשתתף עושה כאן?</span>
-                  <span className="w-7 h-7 rounded-full bg-[#4f8d72] text-white grid place-items-center text-[10px] font-black shrink-0">4</span>
-                </div>
-                <textarea
-                  value={activeStation.task}
-                  onChange={(event) => updateActiveStation('task', event.target.value)}
-                  rows={4}
-                  className="mt-3 w-full resize-none border border-[#d1e2d8] bg-white/95 p-3 text-sm leading-6 outline-none focus:border-[#6e9e87]"
-                  placeholder="שאלה, משימת תצפית, צילום, בחירה או דיון קצר..."
-                />
-              </label>
+              <div className="mt-3 border border-[#dce3dd] bg-[#fbfcfa] p-5 shadow-[0_10px_28px_-24px_rgba(27,67,50,.5)]">
+                {activePlanningField === 'notice' && (
+                  <div>
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <div>
+                        <div className="text-[11px] font-bold text-[#2b755d]">1 • הצעד הפעיל</div>
+                        <h5 className="text-base font-black mt-1">מה המשתתפים צריכים לראות או להבין?</h5>
+                      </div>
+                      <MapPin className="w-5 h-5 text-[#2b755d]" />
+                    </div>
+                    <textarea
+                      value={activeStation.notice}
+                      onChange={(event) => updateActiveStation('notice', event.target.value)}
+                      rows={4}
+                      className="w-full resize-none border border-[#cbdcd3] bg-white p-4 text-sm leading-7 outline-none focus:border-[#2b755d] focus:ring-2 focus:ring-[#dcebe4]"
+                      placeholder="למשל: שימו לב לאופן שבו המרחב מעודד מפגש..."
+                    />
+                  </div>
+                )}
+
+                {activePlanningField === 'concept' && (
+                  <div>
+                    <div className="text-[11px] font-bold text-[#9c7c4f]">2 • בחירה מתוך החקר</div>
+                    <h5 className="text-base font-black mt-1">לאיזה מושג או תיאוריה זה מתחבר?</h5>
+                    <p className="text-xs text-slate-500 mt-1">לא מקלידים מחדש — בוחרים מתוך המושגים שכבר שמרתם.</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {['זהות', 'קהילה', 'נורמות', 'שייכות', 'מרחב ציבורי'].map((concept) => {
+                        const selected = activeStation.concept === concept;
+                        return (
+                          <button
+                            key={concept}
+                            type="button"
+                            onClick={() => updateActiveStation('concept', concept)}
+                            className={`px-4 py-2.5 text-xs font-black border transition-colors ${selected ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-slate-600 border-[#e2d5bf] hover:border-[#bda987]'}`}
+                          >
+                            {concept}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {activePlanningField === 'task' && (
+                  <div>
+                    <div className="text-[11px] font-bold text-[#607f9d]">3 • פעילות המשתתפים</div>
+                    <h5 className="text-base font-black mt-1">מה המשתתפים עושים כאן?</h5>
+                    <textarea
+                      value={activeStation.task}
+                      onChange={(event) => updateActiveStation('task', event.target.value)}
+                      rows={4}
+                      className="mt-3 w-full resize-none border border-[#d2dfeb] bg-white p-4 text-sm leading-7 outline-none focus:border-[#7b9bb5]"
+                      placeholder="שאלה, משימת תצפית, צילום, בחירה או דיון קצר..."
+                    />
+                  </div>
+                )}
+
+                {activePlanningField === 'explanation' && (
+                  <div>
+                    <div className="text-[11px] font-bold text-[#4f8d72]">4 • החיבור בין המקום לתוכן</div>
+                    <h5 className="text-base font-black mt-1">ההסבר שלכם</h5>
+                    <textarea
+                      value={activeStation.explanation}
+                      onChange={(event) => updateActiveStation('explanation', event.target.value)}
+                      rows={4}
+                      className="mt-3 w-full resize-none border border-[#d1e2d8] bg-white p-4 text-sm leading-7 outline-none focus:border-[#6e9e87]"
+                      placeholder="הסבירו במילים שלכם איך מה שרואים כאן קשור למושג."
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-6 pt-5 border-t border-[#e6e9e4] flex items-center justify-between gap-5">

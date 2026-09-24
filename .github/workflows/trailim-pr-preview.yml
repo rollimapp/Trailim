@@ -1,14 +1,9 @@
-name: Trailim PR Preview
+name: Trailim Preview
 
 on:
   push:
     branches:
-      - main
       - feat/guided-project-mvp-desktop
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: trailim-pages-preview
+  group: trailim-preview-feature
   cancel-in-progress: true
 
 jobs:

@@ -223,7 +223,7 @@ const PlanStageStudent: React.FC = () => {
   const [placesReady, setPlacesReady] = useState(false);
   const [placesUnavailable, setPlacesUnavailable] = useState(false);
   const [locationQuery, setLocationQuery] = useState('רחוב אגריפס 78, ירושלים');
-  const [placeSuggestions, setPlaceSuggestions] = useState<Array<{ description: string; placeId: string }>>([]);
+  const [placeSuggestions, setPlaceSuggestions] = useState<Array<{ description: string; prediction: any }>>([]);
 
   const activeStation = stations.find((station) => station.id === activeStationId) ?? stations[0];
 
@@ -272,58 +272,68 @@ const PlanStageStudent: React.FC = () => {
       return;
     }
 
-    const googleWindow = window as typeof window & { google?: any };
-    const google = googleWindow.google;
-    if (!google?.maps?.places) return;
+    let cancelled = false;
 
-    const timer = window.setTimeout(() => {
-      const service = new google.maps.places.AutocompleteService();
-      service.getPlacePredictions(
-        {
+    const timer = window.setTimeout(async () => {
+      try {
+        const googleWindow = window as typeof window & { google?: any };
+        const google = googleWindow.google;
+        if (!google?.maps?.importLibrary) return;
+
+        const { AutocompleteSuggestion } = await google.maps.importLibrary('places');
+        const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: query,
-          componentRestrictions: { country: 'il' },
-        },
-        (predictions: any[] | null, status: string) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
-            setPlaceSuggestions([]);
-            return;
-          }
+          includedRegionCodes: ['il'],
+          language: 'he',
+          region: 'il',
+        });
 
-          setPlaceSuggestions(
-            predictions.slice(0, 5).map((prediction) => ({
-              description: prediction.description,
-              placeId: prediction.place_id,
+        if (cancelled) return;
+
+        setPlaceSuggestions(
+          suggestions
+            .map((suggestion: any) => suggestion.placePrediction)
+            .filter(Boolean)
+            .slice(0, 5)
+            .map((prediction: any) => ({
+              description: prediction.text?.toString?.() || '',
+              prediction,
             })),
-          );
-        },
-      );
-    }, 180);
+        );
+      } catch (error) {
+        if (!cancelled) {
+          setPlaceSuggestions([]);
+          setLocationError('חיפוש המקומות של Google לא זמין כרגע. בדקו שה־Places API (New) מופעל למפתח.');
+        }
+      }
+    }, 220);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [locationQuery, placesReady]);
 
-  const selectPlaceSuggestion = (suggestion: { description: string; placeId: string }) => {
-    const googleWindow = window as typeof window & { google?: any };
-    const google = googleWindow.google;
-    if (!google?.maps) return;
-
+  const selectPlaceSuggestion = async (suggestion: { description: string; prediction: any }) => {
     setLocationQuery(suggestion.description);
     setPlaceSuggestions([]);
     setLocationError(null);
 
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ placeId: suggestion.placeId }, (results: any[] | null, status: string) => {
-      const result = results?.[0];
-      const location = result?.geometry?.location;
+    try {
+      const place = suggestion.prediction.toPlace();
+      await place.fetchFields({
+        fields: ['displayName', 'formattedAddress', 'location'],
+      });
 
-      if (status !== 'OK' || !location) {
+      const location = place.location;
+      if (!location) {
         setLocationError('לא הצלחנו למקם את המקום שנבחר על המפה.');
         return;
       }
 
-      const lat = location.lat();
-      const lng = location.lng();
-      const label = result.formatted_address || suggestion.description;
+      const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+      const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+      const label = place.formattedAddress || place.displayName || suggestion.description;
 
       setStations((current) =>
         current.map((station) =>
@@ -334,7 +344,9 @@ const PlanStageStudent: React.FC = () => {
       );
       setLocationQuery(label);
       setMapPreviewPlace('');
-    });
+    } catch (error) {
+      setLocationError('לא הצלחנו לטעון את פרטי המקום שנבחר.');
+    }
   };
 
   const updateActiveStation = (field: keyof DraftStation, value: string) => {
@@ -595,7 +607,7 @@ const PlanStageStudent: React.FC = () => {
                   <div className="absolute top-[46px] right-0 left-0 bg-white border border-[#d7e0da] shadow-xl z-50 overflow-hidden">
                     {placeSuggestions.map((suggestion) => (
                       <button
-                        key={suggestion.placeId}
+                        key={suggestion.description}
                         type="button"
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => selectPlaceSuggestion(suggestion)}

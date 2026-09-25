@@ -1,4 +1,5 @@
 export * from './domain';
+export * from './projectTemplate';
 
 export type UserRole = 
   | 'guest' 

@@ -57,7 +57,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.TRAILIM_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.TRAILIM_FIREBASE_APP_ID }}
           VITE_FIREBASE_APPCHECK_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ secrets.TRAILIM_RECAPTCHA_ENTERPRISE_SITE_KEY }}
-          VITE_FIREBASE_AI_MODEL: 'gemini-2.5-flash-lite'
+          VITE_FIREBASE_AI_MODEL: 'gemini-3.5-flash-lite'
         run: npm run build
 
       - name: Configure Pages

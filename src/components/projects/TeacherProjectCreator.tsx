@@ -40,13 +40,22 @@ export const TeacherProjectCreator: React.FC<TeacherProjectCreatorProps> = ({ on
     [answers.projectGoal, answers.subject],
   );
 
+  const validationMessage = useMemo(() => {
+    if ((answers.subject?.trim().length || 0) <= 1) return 'כתוב מקצוע כדי שנוכל להתאים את הפרויקט.';
+    if (answers.projectGoal.trim().length <= 8) return 'כתוב קצת יותר על מטרת הפרויקט — לפחות משפט קצר.';
+    return '';
+  }, [answers.projectGoal, answers.subject]);
+
   const update = <K extends keyof TeacherProjectWizardAnswers>(
     key: K,
     value: TeacherProjectWizardAnswers[K],
   ) => setAnswers((current) => ({ ...current, [key]: value }));
 
   const generate = async () => {
-    if (!canGenerate) return;
+    if (!canGenerate) {
+      setError(validationMessage);
+      return;
+    }
     setIsGenerating(true);
     setError('');
     try {
@@ -282,12 +291,15 @@ export const TeacherProjectCreator: React.FC<TeacherProjectCreatorProps> = ({ on
           </div>
 
           {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
+          {!error && validationMessage && (
+            <div className="text-xs text-[#7A857F]">{validationMessage}</div>
+          )}
 
           <div className="pt-3 flex items-center justify-between">
             <p className="text-xs text-[#7A857F]">Trailim ייצור טיוטה בלבד. המורה מאשר ועורך לפני פרסום.</p>
             <button
               onClick={generate}
-              disabled={!canGenerate || isGenerating}
+              disabled={isGenerating}
               className="rounded-xl bg-[#1E5A45] disabled:bg-[#9BA9A2] text-white px-6 py-3 font-bold inline-flex items-center gap-2"
             >
               {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}

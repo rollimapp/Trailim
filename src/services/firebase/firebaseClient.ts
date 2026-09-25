@@ -1,11 +1,13 @@
 import { getApp, getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from 'firebase/app-check';
 
 interface FirebaseServices {
   app: FirebaseApp;
   auth: Auth;
   firestore: Firestore;
+  appCheck: AppCheck | null;
 }
 
 declare global {
@@ -36,6 +38,19 @@ export const getFirebaseServices = (): FirebaseServices => {
   const auth = getAuth(app);
   const firestore = getFirestore(app);
 
+  let appCheck: AppCheck | null = null;
+  const recaptchaSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_ENTERPRISE_SITE_KEY;
+  if (typeof window !== 'undefined' && recaptchaSiteKey) {
+    try {
+      appCheck = initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch {
+      appCheck = null;
+    }
+  }
+
   if (
     import.meta.env.DEV &&
     import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' &&
@@ -46,5 +61,5 @@ export const getFirebaseServices = (): FirebaseServices => {
     globalThis.__trailimFirebaseEmulatorsConnected = true;
   }
 
-  return { app, auth, firestore };
+  return { app, auth, firestore, appCheck };
 };

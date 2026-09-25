@@ -1,6 +1,7 @@
 name: Trailim Preview
 
 # Google Maps + Trailim Firebase AI preview environment
+# Rebuild after Firebase API key correction
 
 on:
   push:

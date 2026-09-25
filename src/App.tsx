@@ -18,9 +18,11 @@ import { ProfileView } from './components/profile/ProfileView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { TeacherHomeVisualProof } from './components/projects/TeacherHomeVisualProof';
 import { GuidedProjectWorkspace } from './components/projects/GuidedProjectWorkspace';
+import { TeacherProjectCreator } from './components/projects/TeacherProjectCreator';
+import type { ProjectTemplate } from './types/projectTemplate';
 import { Route, Station, ExperienceMode } from './types';
 
-type DesktopWorkspaceView = 'home' | 'project' | 'review';
+type DesktopWorkspaceView = 'home' | 'project' | 'review' | 'create-project';
 
 const readDesktopLocation = (): { tab: MainTab; view: DesktopWorkspaceView } => {
   if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
@@ -29,7 +31,7 @@ const readDesktopLocation = (): { tab: MainTab; view: DesktopWorkspaceView } => 
 
   const view = new URLSearchParams(window.location.search).get('view');
 
-  if (view === 'project' || view === 'review' || view === 'home') {
+  if (view === 'project' || view === 'review' || view === 'home' || view === 'create-project') {
     return { tab: 'create', view };
   }
 
@@ -52,6 +54,7 @@ const MainContent: React.FC = () => {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [analyticsRoute, setAnalyticsRoute] = useState<Route | null>(null);
   const [desktopWorkspaceView, setDesktopWorkspaceView] = useState<DesktopWorkspaceView>(initialDesktopLocation.view);
+  const [generatedProjectTemplate, setGeneratedProjectTemplate] = useState<ProjectTemplate | null>(null);
 
   const navigateDesktop = (view: DesktopWorkspaceView | 'explore', replace = false) => {
     if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) {
@@ -109,14 +112,19 @@ const MainContent: React.FC = () => {
             <TeacherHomeVisualProof
               onReview={() => navigateDesktop('review')}
               onOpenProject={() => navigateDesktop('project')}
-              onCreateProject={() => {
-                setEditingRoute(null);
-                setIsBuildingRoute(true);
-              }}
+              onCreateProject={() => navigateDesktop('create-project')}
               onExplore={() => navigateDesktop('explore')}
             />
           ) : desktopWorkspaceView === 'project' ? (
             <GuidedProjectWorkspace onBack={() => navigateDesktop('home')} />
+          ) : desktopWorkspaceView === 'create-project' ? (
+            <TeacherProjectCreator
+              onBack={() => navigateDesktop('home')}
+              onCreated={(template) => {
+                setGeneratedProjectTemplate(template);
+                navigateDesktop('project');
+              }}
+            />
           ) : (
             <DesktopTeacherReview
               onBack={() => navigateDesktop('home')}

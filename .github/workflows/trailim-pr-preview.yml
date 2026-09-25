@@ -1,6 +1,6 @@
 name: Trailim Preview
 
-# Google Maps secret enabled
+# Google Maps + Trailim Firebase AI preview environment
 
 on:
   push:
